@@ -118,8 +118,10 @@ impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
             element
         });
 
-        // Advance the iterators to the next item, "with carry".
-        for i in (1..N.saturating_sub(1)).rev() {
+        // "Carry": if the rightmost iterator is exhausted, advance the one to the left,
+        // and repeat for all but the leftmost. If the leftmost is exhausted, we'll stop
+        // on the next iteration.
+        for i in (1..N).rev() {
             if self.state[i].peek().is_none() {
                 self.state[i] = T::exhaust().peekable();
                 self.state[i - 1].next();
