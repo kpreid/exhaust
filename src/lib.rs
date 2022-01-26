@@ -1,11 +1,9 @@
 #![no_std]
 
-use core::iter;
-
 pub use exhaust_macros::Exhaust;
 
 mod impls;
-use impls::*;
+pub use impls::*;
 
 mod convenience;
 pub use convenience::*;
