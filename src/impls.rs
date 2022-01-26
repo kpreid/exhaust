@@ -26,6 +26,7 @@ impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
 }
 
 /// Iterator implementation of `[T; N]::exhaust()`.
+#[derive(Clone, Debug)]
 pub struct ExhaustArray<T: Exhaust, const N: usize> {
     state: [iter::Peekable<T::Iter>; N],
 }
