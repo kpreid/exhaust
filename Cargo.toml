@@ -16,7 +16,8 @@ keywords = ["exhaustive"]
 
 [features]
 default = ["std"]
-std = []
+std = ["alloc"]
+alloc = []
 
 [dependencies]
 exhaust-macros = { version = "0.1.0", path = "exhaust-macros" }

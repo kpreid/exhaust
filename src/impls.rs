@@ -2,6 +2,18 @@ use core::iter;
 
 use super::Exhaust;
 
+macro_rules! impl_newtype_generic {
+    ($tvar:ident, $container:ty, $wrap_fn:expr) => {
+        impl<$tvar: $crate::Exhaust> $crate::Exhaust for $container {
+            type Iter =
+                ::core::iter::Map<<$tvar as $crate::Exhaust>::Iter, fn($tvar) -> $container>;
+            fn exhaust() -> Self::Iter {
+                <$tvar as $crate::Exhaust>::exhaust().map($wrap_fn)
+            }
+        }
+    };
+}
+
 impl Exhaust for () {
     type Iter = iter::Once<()>;
     fn exhaust() -> Self::Iter {
@@ -36,4 +48,20 @@ impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
     fn next(&mut self) -> Option<Self::Item> {
         todo!()
     }
+}
+
+#[cfg(feature = "alloc")]
+mod alloc_impls {
+    use alloc::boxed::Box;
+    use alloc::rc::Rc;
+
+    impl_newtype_generic!(T, Box<T>, Box::new);
+    impl_newtype_generic!(T, Rc<T>, Rc::new);
+}
+
+#[cfg(feature = "std")]
+mod std_impls {
+    use std::sync::Arc;
+
+    impl_newtype_generic!(T, Arc<T>, Arc::new);
 }
