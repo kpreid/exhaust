@@ -23,7 +23,9 @@ mod tests;
 ///
 /// * For any two items `a, b` produced by the iterator, `a != b`.
 /// * For every value `a` of type `Self`, there is some element `b` of `Self::exhaust()`
-///   for which `a == b`, unless it is the case that `a != a` (partial equality).
+///   for which `a == b`, unless it is the case that `a != a`.
+/// * If there is any value `a` of type `Self` for which `a != a`, then [`Exhaust`]
+///   must produce one or more such values.
 ///
 /// Implementors must also implement [`Clone`], because it is useful for the purpose of
 /// implementing [`Exhaust`] on types containing this type. This should never be a
