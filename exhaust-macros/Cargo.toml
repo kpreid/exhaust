@@ -1,0 +1,15 @@
+[package]
+name = "exhaust-macros"
+version = "0.1.0"
+edition = "2021"
+description = "Proc-macro support for the 'exhaust' library."
+# TODO: repository
+license = "MIT OR Apache-2.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = ["full"] }
