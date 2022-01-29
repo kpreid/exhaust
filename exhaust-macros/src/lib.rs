@@ -3,6 +3,14 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
+/// Derive macro generating an impl of the trait `exhaust::Exhaust`.
+///
+/// This may be applied to `struct`s and `enum`s, but not `union`s.
+///
+/// The generated iterator type will have the name of the given type with `Exhaust`
+/// prepended, and the same visibility.
+///
+/// TODO: Document what optional functionality the generated iterator has.
 #[proc_macro_derive(Exhaust)]
 pub fn derive_exhaust(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
