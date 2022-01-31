@@ -58,11 +58,13 @@ fn exhaust_iter_struct(
 ) -> Result<TokenStream2, syn::Error> {
     Ok(quote! {
         #vis struct #iterator_ident {
-
+            // TODO: iterator state
         }
 
         impl ::core::iter::Iterator for #iterator_ident {
-
+            fn next(&mut self) -> Option<Self::Item> {
+                todo!()
+            }
         }
     })
 }
@@ -74,11 +76,13 @@ fn exhaust_iter_enum(
 ) -> Result<TokenStream2, syn::Error> {
     Ok(quote! {
         #vis struct #iterator_ident {
-
+            // TODO: iterator state
         }
 
         impl ::core::iter::Iterator for #iterator_ident {
-
+            fn next(&mut self) -> Option<Self::Item> {
+                todo!()
+            }
         }
     })
 }
