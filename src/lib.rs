@@ -36,6 +36,36 @@ mod tests;
 /// implementing [`Exhaust`] on types containing this type. This should never be a
 /// significant restriction since a type implementing [`Exhaust`] implies that every
 /// instance can be derived from pure data (“the Nth element of `T::exhaust()`”).
+///
+/// # Examples
+///
+/// ```
+/// use exhaust::Exhaust;
+///
+/// #[derive(Clone, PartialEq, Debug, Exhaust)]
+/// struct Foo {
+///     a: bool,
+///     b: Bar,
+/// }
+///
+/// #[derive(Clone, PartialEq, Debug, Exhaust)]
+/// enum Bar {
+///     One,
+///     Two(bool),
+/// }
+///
+/// assert_eq!(
+///     Foo::exhaust().collect::<Vec<Foo>>(),
+///     vec![
+///         Foo { a: false, b: Bar::One },
+///         Foo { a: false, b: Bar::Two(false) },
+///         Foo { a: false, b: Bar::Two(true) },
+///         Foo { a: true, b: Bar::One },
+///         Foo { a: true, b: Bar::Two(false) },
+///         Foo { a: true, b: Bar::Two(true) },
+///     ],
+/// );
+/// ```
 pub trait Exhaust: Clone {
     /// Type of iterator returned by [`Self::exhaust()`].
     ///
