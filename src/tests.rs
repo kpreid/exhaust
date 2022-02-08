@@ -13,7 +13,7 @@ fn impl_unit() {
     assert_eq!(c::<()>(), vec![()]);
 }
 
-/// core::convert::Infallible is not especially interesting in its role as an error type,
+/// [`core::convert::Infallible`] is not especially interesting in its role as an error type,
 /// but it is also the only _uninhabited_ type in the standard library.
 #[test]
 fn impl_infallible() {

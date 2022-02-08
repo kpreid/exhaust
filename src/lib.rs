@@ -3,6 +3,16 @@
 //! This crate provides the [`Exhaust`] trait and derive macro, which allow iterating over
 //! all values of a given type.
 
+#![forbid(rust_2018_idioms)]
+#![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+#![warn(missing_docs)]
+#![warn(missing_debug_implementations)]
+#![warn(clippy::cast_lossless)]
+#![warn(clippy::exhaustive_enums)]
+#![warn(clippy::exhaustive_structs)]
+#![warn(clippy::pedantic)]
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "std")]
