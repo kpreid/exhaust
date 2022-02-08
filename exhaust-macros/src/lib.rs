@@ -61,7 +61,9 @@ fn exhaust_iter_struct(
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
+    let doc = iterator_doc(&iterator_ident);
     Ok(quote! {
+        #[doc = #doc]
         #[derive(Clone, Debug, Default)]
         #vis struct #iterator_ident {
             // TODO: iterator state
@@ -83,7 +85,9 @@ fn exhaust_iter_enum(
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
+    let doc = iterator_doc(&iterator_ident);
     Ok(quote! {
+        #[doc = #doc]
         #[derive(Clone, Debug, Default)]
         #vis struct #iterator_ident {
             // TODO: iterator state
@@ -97,4 +101,8 @@ fn exhaust_iter_enum(
             }
         }
     })
+}
+
+fn iterator_doc(iterator_ident: &Ident) -> String {
+    format!("Iterator over all values of [`{}`].", iterator_ident)
 }
