@@ -26,9 +26,6 @@ mod tests;
 /// implementing [`Exhaust`] on types containing this type. This should never be a
 /// significant restriction since a type implementing [`Exhaust`] implies that every
 /// instance can be derived from pure data (“the Nth element of `T::exhaust()`”).
-///
-/// This trait is not an `unsafe trait`, and as such, no soundness property should rest
-/// on implementations having any of the above properties.
 pub trait Exhaust: Clone {
     /// Type of iterator returned by [`Self::exhaust()`].
     ///
@@ -49,5 +46,13 @@ pub trait Exhaust: Clone {
     ///   must produce one or more such values.
     /// * `exhaust()` does not panic, nor does the iterator it returns.
     /// * The iterator has a finite length, that is feasible to actually reach.
+    ///
+    /// [`Exhaust`] is not an `unsafe trait`, and as such, no soundness property should rest
+    /// on implementations having any of the above properties unless the particular implementation
+    /// guarantees them.
+    ///
+    /// The following further properties are recommended when feasible:
+    ///
+    /// * If `Self: Ord`, then the items are sorted in ascending order.
     fn exhaust() -> Self::Iter;
 }
