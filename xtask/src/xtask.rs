@@ -14,6 +14,7 @@ struct XtaskArgs {
 #[derive(Debug, clap::Subcommand)]
 enum XtaskCommand {
     /// Run tests in all feature/target combinations we want to exercise.
+    /// Also builds documentation.
     Test,
 }
 
@@ -33,11 +34,20 @@ fn exhaustive_test() -> Result<(), xaction::Error> {
     // All defaults
     test_under_conditions([])?;
 
-    // A no_std target, so that any std deps will definitely fail to compile
-    test_under_conditions(["--no-default-features", "--target=thumbv6m-none-eabi"])?;
+    // Try with alloc but not std
+    test_under_conditions(["--no-default-features"])?;
 
     // Try with alloc but not std
     test_under_conditions(["--no-default-features", "--features=alloc"])?;
+
+    // A no_std target, so that any std deps will definitely fail to compile
+    cargo()
+        .args([
+            "check",
+            "--no-default-features",
+            "--target=thumbv6m-none-eabi",
+        ])
+        .run()?;
 
     Ok(())
 }
