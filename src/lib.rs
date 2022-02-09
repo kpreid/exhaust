@@ -26,9 +26,6 @@ pub use impls::*;
 mod convenience;
 pub use convenience::*;
 
-#[cfg(test)]
-mod tests;
-
 /// Types that can be exhaustively iterated. That is, an iterator is available which
 /// produces every possible value of this type.
 ///

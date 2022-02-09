@@ -1,8 +1,4 @@
-extern crate std;
-use std::prelude::rust_2021::*;
-use std::vec;
-
-use crate::Exhaust;
+use exhaust::Exhaust;
 
 fn c<T: Exhaust>() -> Vec<T> {
     T::exhaust().collect()
