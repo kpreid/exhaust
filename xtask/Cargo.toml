@@ -1,0 +1,14 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "xtask"
+# Rename main file just so that it's instantly identifiable by filename.
+path = "src/xtask.rs"
+
+[dependencies]
+clap = { version = "3.0.8", default-features = false, features = ["derive", "std", "suggestions"] }
+xaction = "0.2.4"
