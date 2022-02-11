@@ -63,6 +63,8 @@ impl Exhaust for f32 {
     }
 }
 
+impl_newtype_generic!(T, core::num::Wrapping<T>, core::num::Wrapping);
+
 impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
     type Iter = ExhaustArray<T, N>;
     fn exhaust() -> Self::Iter {
