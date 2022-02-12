@@ -62,6 +62,7 @@ fn exhaust_iter_struct(
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&iterator_ident);
+
     Ok(quote! {
         #[doc = #doc]
         #[derive(Clone, Debug, Default)]
@@ -80,24 +81,58 @@ fn exhaust_iter_struct(
 }
 
 fn exhaust_iter_enum(
-    _e: syn::DataEnum,
+    e: syn::DataEnum,
     vis: syn::Visibility,
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&iterator_ident);
+
+    // Generate a `Chain` of iterators. This is not an optimal implementation,
+    // because it does extra work per step; ideally we would generate an enum parallel
+    // to the original which produces
+    let mut inner_iterator_type_and_initializer = None;
+    for variant in e.variants.iter() {
+        let variant_ident = &variant.ident;
+        let variant_iterator_type = quote! { ::core::iter::Once<#target_type> };
+        let variant_iterator_initializer =
+            quote! { ::core::iter::once(#target_type :: #variant_ident {}) };
+        inner_iterator_type_and_initializer = Some(
+            if let Some((previous_type, previous_init)) = inner_iterator_type_and_initializer {
+                (
+                    quote! { ::core::iter::Chain<#previous_type, #variant_iterator_type> },
+                    quote! { ::core::iter::Iterator::chain(#previous_init, #variant_iterator_initializer) },
+                )
+            } else {
+                (variant_iterator_type, variant_iterator_initializer)
+            },
+        );
+    }
+    let (inner_iterator_type, inner_iterator_initializer) =
+        match inner_iterator_type_and_initializer {
+            Some((t, i)) => (t, i),
+            None => (
+                quote! { ::core::iter::Empty },
+                quote! { ::core::iter::empty },
+            ),
+        };
+
     Ok(quote! {
         #[doc = #doc]
-        #[derive(Clone, Debug, Default)]
-        #vis struct #iterator_ident {
-            // TODO: iterator state
-        }
+        #[derive(Clone, Debug)]
+        #vis struct #iterator_ident(#inner_iterator_type);
 
         impl ::core::iter::Iterator for #iterator_ident {
             type Item = #target_type;
 
-            fn next(&mut self) -> Option<Self::Item> {
-                todo!("enum exhaust iterator")
+            fn next(&mut self) -> ::core::option::Option<Self::Item> {
+                self.0.next()
+            }
+        }
+
+        impl ::core::default::Default for #iterator_ident {
+            fn default() -> Self {
+                Self(#inner_iterator_initializer)
             }
         }
     })
