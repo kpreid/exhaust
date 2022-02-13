@@ -1,7 +1,10 @@
-use itertools::Itertools as _;
+use std::iter;
+
+use itertools::{izip, Itertools as _};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
+use syn::spanned::Spanned;
 use syn::{parse_macro_input, DeriveInput};
 
 /// Derive macro generating an impl of the trait `exhaust::Exhaust`.
@@ -213,52 +216,83 @@ fn exhaust_iter_enum(
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&target_type);
 
-    // Generate a `Chain` of iterators. This is not an optimal implementation,
-    // because it does extra work per step; ideally we would generate an enum parallel
-    // to the original which produces
-    let mut inner_iterator_type_and_initializer = None;
-    for variant in e.variants.iter() {
-        let variant_ident = &variant.ident;
-        let variant_iterator_type = quote! { ::core::iter::Once<#target_type> };
-        let variant_iterator_initializer =
-            quote! { ::core::iter::once(#target_type :: #variant_ident {}) };
-        inner_iterator_type_and_initializer = Some(
-            if let Some((previous_type, previous_init)) = inner_iterator_type_and_initializer {
-                (
-                    quote! { ::core::iter::Chain<#previous_type, #variant_iterator_type> },
-                    quote! { ::core::iter::Iterator::chain(#previous_init, #variant_iterator_initializer) },
-                )
-            } else {
-                (variant_iterator_type, variant_iterator_initializer)
-            },
-        );
-    }
-    let (inner_iterator_type, inner_iterator_initializer) =
-        match inner_iterator_type_and_initializer {
-            Some((t, i)) => (t, i),
-            None => (
-                quote! { ::core::iter::Empty<#target_type> },
-                quote! { ::core::iter::empty() },
-            ),
-        };
+    // TODO: hide the declaration of this
+    let state_enum_type = Ident::new(
+        &format!("__ExhaustEnum_{}", target_type),
+        Span::mixed_site(),
+    );
+
+    // One ident per variant of the original enum.
+    let state_enum_progress_variants: Vec<Ident> = e
+        .variants
+        .iter()
+        .map(|v| {
+            // Renaming the variant serves two purposes: less confusing error/debug text,
+            // and disambiguating from the “Done” variant.
+            Ident::new(&format!("Exhaust{}", v.ident), v.span())
+        })
+        .collect();
+
+    // TODO: ensure no name conflict, perhaps by renaming the others
+    let done_variant = Ident::new("Done", Span::mixed_site());
+
+    // All variants of our generated enum, which are equal to the original enum
+    // plus a "done" variant.
+    let state_enum_variants: Vec<Ident> = e
+        .variants
+        .iter()
+        .map(|v| {
+            // Renaming the variant serves two purposes: less confusing error/debug text,
+            // and disambiguating from the “Done” variant.
+            Ident::new(&format!("Exhaust{}", v.ident), v.span())
+        })
+        .chain(iter::once(done_variant.clone()))
+        .collect();
+
+    let first_state_variant = &state_enum_variants[0];
+
+    // Match arms to advance the iterator.
+    let variant_next_arms = izip!(
+        e.variants.iter(),
+        state_enum_progress_variants.iter(),
+        state_enum_variants.iter().skip(1)
+    )
+    .map(|(target_enum_variant, state_ident, next_state_ident)| {
+        let target_variant_ident = &target_enum_variant.ident;
+        quote! {
+            #state_enum_type::#state_ident => {
+                // TODO: deal with enum fields
+                self.0 = #state_enum_type::#next_state_ident {};
+                Some(#target_type::#target_variant_ident {})
+            }
+        }
+    });
 
     Ok(quote! {
         #[doc = #doc]
         #[derive(Clone, Debug)]
-        #vis struct #iterator_ident(#inner_iterator_type);
+        #vis struct #iterator_ident(#state_enum_type);
 
         impl ::core::iter::Iterator for #iterator_ident {
             type Item = #target_type;
 
             fn next(&mut self) -> ::core::option::Option<Self::Item> {
-                self.0.next()
+                match self.0 {
+                    #( #variant_next_arms , )*
+                    #state_enum_type::#done_variant => None,
+                }
             }
         }
 
         impl ::core::default::Default for #iterator_ident {
             fn default() -> Self {
-                Self(#inner_iterator_initializer)
+                Self(#state_enum_type :: #first_state_variant)
             }
+        }
+
+        #[derive(Clone, Debug)]
+        enum #state_enum_type {
+            #( #state_enum_variants , )*
         }
     })
 }
