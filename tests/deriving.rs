@@ -1,7 +1,24 @@
 use exhaust::Exhaust;
+use std::fmt::Debug;
 
-fn c<T: Exhaust>() -> Vec<T> {
-    T::exhaust().collect()
+fn c<T: Debug + Exhaust>() -> Vec<T>
+where
+    <T as Exhaust>::Iter: Debug,
+{
+    let mut iterator = T::exhaust();
+    let mut result = Vec::new();
+    println!("Initial iterator state {:?}", iterator);
+    while let Some(item) = iterator.next() {
+        println!("{}. {:?} from {:?}", result.len(), item, iterator);
+        if result.len() >= 10 {
+            panic!(
+                "exhaustive iterator didn't stop when expected;\nlast item: {:#?}\nstate: {:#?}",
+                item, iterator
+            );
+        }
+        result.push(item);
+    }
+    result
 }
 
 #[derive(Clone, Debug, Exhaust, PartialEq)]
