@@ -22,4 +22,3 @@ alloc = []
 
 [dependencies]
 exhaust-macros = { version = "0.1.0", path = "exhaust-macros" }
-itertools = {version = "0.10.3", default-features = false }

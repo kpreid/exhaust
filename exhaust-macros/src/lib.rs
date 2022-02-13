@@ -1,6 +1,7 @@
+use itertools::Itertools as _;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{quote, ToTokens as _};
 use syn::{parse_macro_input, DeriveInput};
 
 /// Derive macro generating an impl of the trait `exhaust::Exhaust`.
@@ -57,28 +58,80 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
 
 /// Given a set of fields to exhaust, generate fields and code for the iterator to
 /// do that. This applies to structs and to enum variants.
+/// TODO: Handle zero-fields case.
 fn exhaust_iter_fields(struct_fields: &syn::Fields) -> (TokenStream2, TokenStream2, TokenStream2) {
-    let (iterator_fields, iterator_fields_init): (Vec<TokenStream2>, Vec<TokenStream2>) =
-        struct_fields
-            .iter()
-            .enumerate()
-            .map(|(index, field)| {
-                let field_name = match &field.ident {
-                    Some(name) => name.to_token_stream(),
-                    None => quote! { #index },
-                };
-                let field_type = &field.ty;
-                (
-                    quote! {
-                        #field_name : <#field_type as Exhaust>::Iter
-                    },
-                    quote! {
-                        #field_name : <#field_type as Exhaust>::exhaust()
-                    },
+    let (iterator_fields, iterator_fields_init, field_names, field_types): (
+        Vec<TokenStream2>,
+        Vec<TokenStream2>,
+        Vec<TokenStream2>,
+        Vec<TokenStream2>,
+    ) = struct_fields
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let field_name = match &field.ident {
+                Some(name) => name.to_token_stream(),
+                None => quote! { #index },
+            };
+            let field_type = &field.ty;
+            (
+                quote! {
+                    #field_name : ::core::iter::Peekable<
+                        <#field_type as ::exhaust::Exhaust>::Iter
+                    >
+                },
+                quote! {
+                    #field_name : ::exhaust::iteration::peekable_exhaust::<#field_type>()
+                },
+                field_name,
+                field_type.clone().to_token_stream(),
+            )
+        })
+        .multiunzip();
+
+    let field_value_getters = field_names.iter().enumerate().map(|(i, name)| {
+        // unwrap() cannot fail because we checked with peek() before this code runs.
+        // TODO: Can we manage to extract this pattern to a helper module?
+        if i == field_names.len() {
+            // Advance the "last digit".
+            quote! { ::core::iter::Iterator::next(&mut self.#name).unwrap() }
+        } else {
+            // Don't advance the others
+            quote! { ::core::clone::Clone::clone(::core::iter::Peekable::peek(&mut self.#name).unwrap()) }
+        }
+    });
+
+    let carries = field_names
+        .iter()
+        .skip(1)
+        .zip(field_names.iter().zip(field_types))
+        .map(|(high, (low, low_field_type))| {
+            quote! {
+                ::exhaust::iteration::carry(
+                    &mut self.#high,
+                    &mut self.#low,
+                    ::exhaust::iteration::peekable_exhaust::<#low_field_type>
                 )
-            })
-            .unzip();
-    let implementation = quote! { todo!("exhaust_iter_fields missing") };
+            }
+        });
+
+    // This implementation is analogous to exhaust::ExhaustArray, except that instead of
+    // iterating over the indices it has to hardcode each one.
+    let next_fn_implementation = quote! {
+        // Check if we have a next item
+        let has_next = #( self.#field_names.peek().is_some() && )* true;
+        if !has_next {
+            return None;
+        }
+
+        // Gather that next item, advancing the last field iterator.
+        let item = ( #( #field_value_getters , )* );
+
+        // Perform carries to other field iterators.
+        #( #carries && )* true;
+
+        Some(item)
+    };
     (
         quote! {
             #( #iterator_fields , )*
@@ -86,7 +139,7 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields) -> (TokenStream2, TokenStrea
         quote! {
             #( #iterator_fields_init , )*
         },
-        implementation,
+        next_fn_implementation,
     )
 }
 
@@ -96,7 +149,7 @@ fn exhaust_iter_struct(
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
-    let doc = iterator_doc(&iterator_ident);
+    let doc = iterator_doc(&target_type);
     let (iterator_fields, iterator_fields_init, iterator_code) = exhaust_iter_fields(&s.fields);
 
     Ok(quote! {
@@ -130,7 +183,7 @@ fn exhaust_iter_enum(
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
-    let doc = iterator_doc(&iterator_ident);
+    let doc = iterator_doc(&target_type);
 
     // Generate a `Chain` of iterators. This is not an optimal implementation,
     // because it does extra work per step; ideally we would generate an enum parallel
@@ -182,6 +235,6 @@ fn exhaust_iter_enum(
     })
 }
 
-fn iterator_doc(iterator_ident: &Ident) -> String {
-    format!("Iterator over all values of [`{}`].", iterator_ident)
+fn iterator_doc(type_name: &Ident) -> String {
+    format!("Iterator over all values of [`{}`].", type_name)
 }
