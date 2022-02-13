@@ -102,7 +102,7 @@ fn exhaust_iter_fields(
     let field_value_getters = field_names.iter().enumerate().map(|(i, name)| {
         // unwrap() cannot fail because we checked with peek() before this code runs.
         // TODO: Can we manage to extract this pattern to a helper module?
-        if i == field_names.len() {
+        if i == field_names.len() - 1 {
             // Advance the "last digit".
             quote! { ::core::iter::Iterator::next(&mut self.#name).unwrap() }
         } else {
