@@ -113,8 +113,8 @@ fn exhaust_iter_fields(
 
     let carries = field_names
         .iter()
-        .skip(1)
-        .zip(field_names.iter().zip(field_types))
+        .zip(field_names.iter().skip(1).zip(field_types.iter().skip(1)))
+        .rev()
         .map(|(high, (low, low_field_type))| {
             quote! {
                 ::exhaust::iteration::carry(
