@@ -1,5 +1,7 @@
 use core::iter;
 
+use crate::iteration::{carry, peekable_exhaust};
+
 use super::Exhaust;
 
 macro_rules! impl_via_range {
@@ -69,7 +71,7 @@ impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
     type Iter = ExhaustArray<T, N>;
     fn exhaust() -> Self::Iter {
         ExhaustArray {
-            state: [(); N].map(|_| T::exhaust().peekable()),
+            state: [(); N].map(|_| peekable_exhaust::<T>()),
             done_zero: false,
         }
     }
@@ -124,10 +126,8 @@ impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
         // and repeat for all but the leftmost. If the leftmost is exhausted, we'll stop
         // on the next iteration.
         for i in (1..N).rev() {
-            if self.state[i].peek().is_none() {
-                self.state[i] = T::exhaust().peekable();
-                self.state[i - 1].next();
-            } else {
+            let (high, low) = &mut self.state.split_at_mut(i);
+            if !carry(high.last_mut().unwrap(), &mut low[0], peekable_exhaust::<T>) {
                 break;
             }
         }
