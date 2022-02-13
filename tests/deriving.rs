@@ -26,7 +26,7 @@ where
 struct UnitStruct;
 
 #[test]
-fn unit_struct() {
+fn struct_unit() {
     assert_eq!(c::<UnitStruct>(), vec![UnitStruct]);
 }
 
@@ -40,7 +40,7 @@ struct SimpleStruct {
 
 #[test]
 #[rustfmt::skip]
-fn simple_struct() {
+fn struct_simple() {
     assert_eq!(
         c::<SimpleStruct>(),
         vec![
@@ -60,6 +60,31 @@ fn simple_struct() {
 enum EmptyEnum {}
 
 #[test]
-fn empty_enum() {
+fn enum_empty() {
     assert_eq!(c::<EmptyEnum>(), vec![]);
+}
+
+#[derive(Clone, Debug, Exhaust, PartialEq)]
+enum OneValueEnum {
+    Foo,
+}
+
+#[test]
+fn enum_one_value() {
+    assert_eq!(c::<OneValueEnum>(), vec![OneValueEnum::Foo]);
+}
+
+#[derive(Clone, Debug, Exhaust, PartialEq)]
+enum FieldlessEnum {
+    Foo,
+    Bar,
+    Baz,
+}
+
+#[test]
+fn enum_fieldless_multi() {
+    assert_eq!(
+        c::<FieldlessEnum>(),
+        vec![FieldlessEnum::Foo, FieldlessEnum::Bar, FieldlessEnum::Baz]
+    );
 }
