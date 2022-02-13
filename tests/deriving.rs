@@ -18,6 +18,7 @@ where
         }
         result.push(item);
     }
+    println!("Final iterator state {:?}", iterator);
     result
 }
 
