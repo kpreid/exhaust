@@ -237,8 +237,8 @@ fn exhaust_iter_enum(
         match inner_iterator_type_and_initializer {
             Some((t, i)) => (t, i),
             None => (
-                quote! { ::core::iter::Empty },
-                quote! { ::core::iter::empty },
+                quote! { ::core::iter::Empty<#target_type> },
+                quote! { ::core::iter::empty() },
             ),
         };
 

@@ -55,3 +55,11 @@ fn simple_struct() {
         ]
     )
 }
+
+#[derive(Clone, Debug, Exhaust, PartialEq)]
+enum EmptyEnum {}
+
+#[test]
+fn empty_enum() {
+    assert_eq!(c::<EmptyEnum>(), vec![]);
+}
