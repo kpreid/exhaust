@@ -58,11 +58,18 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
 
 /// Given a set of fields to exhaust, generate fields and code for the iterator to
 /// do that. This applies to structs and to enum variants.
-/// TODO: Handle zero-fields case.
+///
+/// This code generator cannot be used on zero fields; the caller should handle that
+/// case, because that can be implemented more efficiently given knowledge of the case
+/// where the type is an enum.
 fn exhaust_iter_fields(
     struct_fields: &syn::Fields,
     constructor: TokenStream2,
 ) -> (TokenStream2, TokenStream2, TokenStream2) {
+    assert!(
+        !struct_fields.is_empty(),
+        "exhaust_iter_fields requires at least 1 field"
+    );
     let (iterator_fields, iterator_fields_init, field_names, field_types): (
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -156,8 +163,22 @@ fn exhaust_iter_struct(
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&target_type);
-    let (iterator_fields, iterator_fields_init, iterator_code) =
-        exhaust_iter_fields(&s.fields, target_type.to_token_stream());
+    let (iterator_fields, iterator_fields_init, iterator_code) = if s.fields.is_empty() {
+        (
+            quote! { done: bool, },
+            quote! { done: false, },
+            quote! {
+                if self.done {
+                    None
+                } else {
+                    self.done = true;
+                    Some(#target_type {})
+                }
+            },
+        )
+    } else {
+        exhaust_iter_fields(&s.fields, target_type.to_token_stream())
+    };
 
     Ok(quote! {
         #[doc = #doc]
