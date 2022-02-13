@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput};
 
 /// Derive macro generating an impl of the trait `exhaust::Exhaust`.
@@ -55,26 +55,70 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     })
 }
 
+/// Given a set of fields to exhaust, generate fields and code for the iterator to
+/// do that. This applies to structs and to enum variants.
+fn exhaust_iter_fields(struct_fields: &syn::Fields) -> (TokenStream2, TokenStream2, TokenStream2) {
+    let (iterator_fields, iterator_fields_init): (Vec<TokenStream2>, Vec<TokenStream2>) =
+        struct_fields
+            .iter()
+            .enumerate()
+            .map(|(index, field)| {
+                let field_name = match &field.ident {
+                    Some(name) => name.to_token_stream(),
+                    None => quote! { #index },
+                };
+                let field_type = &field.ty;
+                (
+                    quote! {
+                        #field_name : <#field_type as Exhaust>::Iter
+                    },
+                    quote! {
+                        #field_name : <#field_type as Exhaust>::exhaust()
+                    },
+                )
+            })
+            .unzip();
+    let implementation = quote! { todo!("exhaust_iter_fields missing") };
+    (
+        quote! {
+            #( #iterator_fields , )*
+        },
+        quote! {
+            #( #iterator_fields_init , )*
+        },
+        implementation,
+    )
+}
+
 fn exhaust_iter_struct(
-    _s: syn::DataStruct,
+    s: syn::DataStruct,
     vis: syn::Visibility,
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&iterator_ident);
+    let (iterator_fields, iterator_fields_init, iterator_code) = exhaust_iter_fields(&s.fields);
 
     Ok(quote! {
         #[doc = #doc]
-        #[derive(Clone, Debug, Default)]
+        #[derive(Clone, Debug)]
         #vis struct #iterator_ident {
-            // TODO: iterator state
+            #iterator_fields
         }
 
         impl ::core::iter::Iterator for #iterator_ident {
             type Item = #target_type;
 
             fn next(&mut self) -> Option<Self::Item> {
-                todo!("struct exhaust iterator")
+                #iterator_code
+            }
+        }
+
+        impl ::core::default::Default for #iterator_ident {
+            fn default() -> Self {
+                Self {
+                    #iterator_fields_init
+                }
             }
         }
     })
