@@ -59,7 +59,10 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
 /// Given a set of fields to exhaust, generate fields and code for the iterator to
 /// do that. This applies to structs and to enum variants.
 /// TODO: Handle zero-fields case.
-fn exhaust_iter_fields(struct_fields: &syn::Fields) -> (TokenStream2, TokenStream2, TokenStream2) {
+fn exhaust_iter_fields(
+    struct_fields: &syn::Fields,
+    constructor: TokenStream2,
+) -> (TokenStream2, TokenStream2, TokenStream2) {
     let (iterator_fields, iterator_fields_init, field_names, field_types): (
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -125,10 +128,13 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields) -> (TokenStream2, TokenStrea
         }
 
         // Gather that next item, advancing the last field iterator.
-        let item = ( #( #field_value_getters , )* );
+        let item = #constructor { #( #field_names : #field_value_getters , )* };
 
         // Perform carries to other field iterators.
-        #( #carries && )* true;
+        #[allow(clippy::short_circuit_statement)]
+        {
+            let _ = #( #carries && )* true;
+        }
 
         Some(item)
     };
@@ -150,7 +156,8 @@ fn exhaust_iter_struct(
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&target_type);
-    let (iterator_fields, iterator_fields_init, iterator_code) = exhaust_iter_fields(&s.fields);
+    let (iterator_fields, iterator_fields_init, iterator_code) =
+        exhaust_iter_fields(&s.fields, target_type.to_token_stream());
 
     Ok(quote! {
         #[doc = #doc]
