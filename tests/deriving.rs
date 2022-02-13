@@ -32,19 +32,26 @@ fn unit_struct() {
 
 #[derive(Clone, Debug, Exhaust, PartialEq)]
 struct SimpleStruct {
+    // At least three fields are needed to check the carry logic.
     a: bool,
     b: bool,
+    c: bool,
 }
 
 #[test]
+#[rustfmt::skip]
 fn simple_struct() {
     assert_eq!(
         c::<SimpleStruct>(),
         vec![
-            SimpleStruct { a: false, b: false },
-            SimpleStruct { a: false, b: true },
-            SimpleStruct { a: true, b: false },
-            SimpleStruct { a: true, b: true },
+            SimpleStruct { a: false, b: false, c: false },
+            SimpleStruct { a: false, b: false, c: true },
+            SimpleStruct { a: false, b: true, c: false },
+            SimpleStruct { a: false, b: true, c: true },
+            SimpleStruct { a: true, b: false, c: false },
+            SimpleStruct { a: true, b: false, c: true },
+            SimpleStruct { a: true, b: true, c: false },
+            SimpleStruct { a: true, b: true, c: true },
         ]
     )
 }
