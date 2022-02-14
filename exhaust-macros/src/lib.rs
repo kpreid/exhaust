@@ -273,13 +273,11 @@ fn exhaust_iter_enum(
     // plus a "done" variant.
     let (
         state_enum_variant_decls,
-        state_enum_variant_idents,
         state_enum_variant_initializers,
         state_enum_field_pats,
         state_enum_variant_advancers,
     ): (
         Vec<TokenStream2>,
-        Vec<Ident>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -316,7 +314,6 @@ fn exhaust_iter_enum(
                         #state_fields_decls
                     }
                 },
-                state_ident.clone(),
                 quote! {
                     #state_enum_type :: #state_ident { #state_fields_init }
                 },
@@ -326,7 +323,6 @@ fn exhaust_iter_enum(
         })
         .chain(iter::once((
             done_variant.to_token_stream(),
-            done_variant.clone(),
             quote! {
                 #state_enum_type :: #done_variant {}
             },
