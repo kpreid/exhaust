@@ -238,29 +238,46 @@ fn exhaust_iter_enum(
 
     // All variants of our generated enum, which are equal to the original enum
     // plus a "done" variant.
-    let state_enum_variants: Vec<Ident> = e
+    let (state_enum_variant_decls, state_enum_variant_idents, state_enum_variant_initializers): (
+        Vec<TokenStream2>,
+        Vec<Ident>,
+        Vec<TokenStream2>,
+    ) = e
         .variants
         .iter()
-        .map(|v| {
-            // Renaming the variant serves two purposes: less confusing error/debug text,
-            // and disambiguating from the “Done” variant.
-            Ident::new(&format!("Exhaust{}", v.ident), v.span())
+        .zip(state_enum_progress_variants.iter())
+        .map(|(target_variant, state_ident)| {
+            (
+                quote! {
+                    #state_ident {}
+                },
+                state_ident.clone(),
+                quote! {
+                    #state_enum_type :: #state_ident {}
+                },
+            )
         })
-        .chain(iter::once(done_variant.clone()))
-        .collect();
+        .chain(iter::once((
+            done_variant.to_token_stream(),
+            done_variant.clone(),
+            quote! {
+                #state_enum_type :: #done_variant {}
+            },
+        )))
+        .multiunzip();
 
-    let first_state_variant = &state_enum_variants[0];
+    let first_state_variant_initializer = &state_enum_variant_initializers[0];
 
     // Match arms to advance the iterator.
     let variant_next_arms = izip!(
         e.variants.iter(),
         state_enum_progress_variants.iter(),
-        state_enum_variants.iter().skip(1)
+        state_enum_variant_idents.iter().skip(1)
     )
     .map(|(target_enum_variant, state_ident, next_state_ident)| {
         let target_variant_ident = &target_enum_variant.ident;
         quote! {
-            #state_enum_type::#state_ident => {
+            #state_enum_type::#state_ident {} => {
                 // TODO: deal with enum fields
                 self.0 = #state_enum_type::#next_state_ident {};
                 Some(#target_type::#target_variant_ident {})
@@ -286,13 +303,13 @@ fn exhaust_iter_enum(
 
         impl ::core::default::Default for #iterator_ident {
             fn default() -> Self {
-                Self(#state_enum_type :: #first_state_variant)
+                Self(#first_state_variant_initializer)
             }
         }
 
         #[derive(Clone, Debug)]
         enum #state_enum_type {
-            #( #state_enum_variants , )*
+            #( #state_enum_variant_decls , )*
         }
     })
 }
