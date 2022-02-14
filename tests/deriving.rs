@@ -101,7 +101,9 @@ fn enum_fields() {
         c::<EnumWithFields>(),
         vec![
             EnumWithFields::Foo(false, false),
+            EnumWithFields::Foo(false, true),
             EnumWithFields::Foo(true, false),
+            EnumWithFields::Foo(true, true),
             EnumWithFields::Bar(false),
             EnumWithFields::Bar(true)
         ]

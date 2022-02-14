@@ -278,9 +278,11 @@ fn exhaust_iter_enum(
         state_enum_variant_idents,
         state_enum_variant_initializers,
         state_enum_field_pats,
+        state_enum_variant_advancers,
     ): (
         Vec<TokenStream2>,
         Vec<Ident>,
+        Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
     ) = e
@@ -292,7 +294,7 @@ fn exhaust_iter_enum(
                 field_decls: state_fields_decls,
                 initializers: state_fields_init,
                 field_pats,
-                advance: _,
+                advance,
             } = if target_variant.fields.is_empty() {
                 ExhaustFields {
                     field_decls: quote! {},
@@ -321,6 +323,7 @@ fn exhaust_iter_enum(
                     #state_enum_type :: #state_ident { #state_fields_init }
                 },
                 field_pats,
+                advance,
             )
         })
         .chain(iter::once((
@@ -330,6 +333,7 @@ fn exhaust_iter_enum(
                 #state_enum_type :: #done_variant {}
             },
             quote! {},
+            quote! { compile_error!("done advancer not used") },
         )))
         .multiunzip();
 
@@ -340,18 +344,32 @@ fn exhaust_iter_enum(
         e.variants.iter(),
         state_enum_progress_variants.iter(),
         state_enum_field_pats.iter(),
-        state_enum_variant_initializers.iter().skip(1)
+        state_enum_variant_initializers.iter().skip(1),
+        state_enum_variant_advancers.iter(),
     )
     .map(
-        |(target_enum_variant, state_ident, pats, next_state_initializer)| {
+        |(target_enum_variant, state_ident, pats, next_state_initializer, field_advancer)| {
             let target_variant_ident = &target_enum_variant.ident;
+            let advancer = if target_enum_variant.fields.is_empty() {
+                quote! {
+                    self.0 = #next_state_initializer;
+                    Some(#target_type::#target_variant_ident {})
+                }
+            } else {
+                quote! {
+                    let maybe_variant = { #field_advancer };
+                    match maybe_variant {
+                        Some(v) => Some(v),
+                        None => {
+                            self.0 = #next_state_initializer;
+                            self.next() // TODO: kludge
+                        }
+                    }
+                }
+            };
             quote! {
                 #state_enum_type::#state_ident { #pats } => {
-                    // TODO: deal with enum fields
-                    self.0 = #next_state_initializer;
-                    Some(#target_type::#target_variant_ident {
-
-                    })
+                    #advancer
                 }
             }
         },
@@ -366,7 +384,7 @@ fn exhaust_iter_enum(
             type Item = #target_type;
 
             fn next(&mut self) -> ::core::option::Option<Self::Item> {
-                match self.0 {
+                match &mut self.0 {
                     #( #variant_next_arms , )*
                     #state_enum_type::#done_variant => None,
                 }
