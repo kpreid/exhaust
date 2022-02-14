@@ -109,3 +109,11 @@ fn enum_fields() {
         ]
     );
 }
+
+#[allow(dead_code)]
+#[derive(Clone, Exhaust)]
+enum VariableNameHygieneTest {
+    // These field names shouldn't conflict with internal variables in the generated impl.
+    Foo { has_next: (), item: (), f0: () },
+    Bar(()),
+}

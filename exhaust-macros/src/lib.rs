@@ -97,11 +97,16 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
                 Some(name) => name.to_token_stream(),
                 None => syn::LitInt::new(&format!("{}", index), Span::mixed_site()).to_token_stream(),
             };
-            let iter_field_name = match &field.ident {
-                Some(name) => name.to_token_stream(),
-                None => Ident::new(&format!("f{}", index), Span::mixed_site()).to_token_stream(),
-            };
+
+            // Generate a field name to use in the iterator. By renaming the fields we ensure
+            // they won't conflict with variables used in the rest of the iterator code.
+            let iter_field_name = Ident::new(&match &field.ident {
+                Some(name) => format!("iter_f_{}", name),
+                None => format!("iter_f_{}", index),
+            }, Span::mixed_site()).to_token_stream();
+            
             let field_type = &field.ty;
+            
             (
                 quote! {
                     #iter_field_name : ::core::iter::Peekable<
@@ -153,7 +158,6 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
     // iterating over the indices it has to hardcode each one.
     let next_fn_implementation = quote! {
         // Check if we have a next item
-        // TODO: fix hygeine w.r.t pattern bound fields and local variables
         let has_next = #( #iter_field_names.peek().is_some() && )* true;
         if !has_next {
             None
@@ -292,12 +296,13 @@ fn exhaust_iter_enum(
                 field_pats,
                 advance,
             } = if target_variant.fields.is_empty() {
+                // TODO: don't even construct this dummy value (needs refactoring)
                 ExhaustFields {
                     field_decls: quote! {},
                     initializers: quote! {},
                     field_pats: quote! {},
                     advance: quote! {
-                        todo!("code for fieldless enums missing")
+                        compile_error!("can't happen: fieldless ExhaustFields not used")
                     },
                 }
             } else {
@@ -356,7 +361,8 @@ fn exhaust_iter_enum(
                         Some(v) => Some(v),
                         None => {
                             self.0 = #next_state_initializer;
-                            self.next() // TODO: kludge
+                            // TODO: recursion is a kludge here; rewrite as loop{}
+                            self.next()
                         }
                     }
                 }
