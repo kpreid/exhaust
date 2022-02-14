@@ -157,12 +157,8 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
     let next_fn_implementation = quote! {
-        // Check if we have a next item
-        let has_next = #( #iter_field_names.peek().is_some() && )* true;
-        if !has_next {
-            None
-        } else {
-            // Gather that next item, advancing the last field iterator.
+        if #( #iter_field_names.peek().is_some() && )* true {
+            // Gather that next item, advancing the last field iterator only.
             let item = #constructor { #( #target_field_names : #field_value_getters , )* };
 
             // Perform carries to other field iterators.
@@ -170,6 +166,8 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
             let _ = #( #carries && )* true;
 
             Some(item)
+        } else {
+            None
         }
     };
     ExhaustFields {
