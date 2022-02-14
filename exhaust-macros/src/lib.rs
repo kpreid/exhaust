@@ -247,13 +247,38 @@ fn exhaust_iter_enum(
         .iter()
         .zip(state_enum_progress_variants.iter())
         .map(|(target_variant, state_ident)| {
+            let (state_fields_decls, state_fields_init, iterator_code) =
+                if target_variant.fields.is_empty() {
+                    (
+                        quote! {},
+                        quote! {},
+                        quote! {
+                            // TODO need to integrate with advancing
+                            if self.done {
+                                None
+                            } else {
+                                self.done = true;
+                                Some(#target_type {})
+                            }
+                        },
+                    )
+                } else {
+                    let target_variant_ident = &target_variant.ident;
+                    exhaust_iter_fields(
+                        &target_variant.fields,
+                        quote! { #target_type :: #target_variant_ident },
+                    )
+                };
+
             (
                 quote! {
-                    #state_ident {}
+                    #state_ident {
+                        #state_fields_decls
+                    }
                 },
                 state_ident.clone(),
                 quote! {
-                    #state_enum_type :: #state_ident {}
+                    #state_enum_type :: #state_ident { #state_fields_init }
                 },
             )
         })

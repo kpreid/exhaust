@@ -88,3 +88,22 @@ fn enum_fieldless_multi() {
         vec![FieldlessEnum::Foo, FieldlessEnum::Bar, FieldlessEnum::Baz]
     );
 }
+
+// #[derive(Clone, Debug, Exhaust, PartialEq)]
+// enum EnumWithFields {
+//     Foo(bool),
+//     Bar(bool),
+// }
+//
+// #[test]
+// fn enum_fields() {
+//     assert_eq!(
+//         c::<EnumWithFields>(),
+//         vec![
+//             EnumWithFields::Foo(false),
+//             EnumWithFields::Foo(true),
+//             EnumWithFields::Bar(false),
+//             EnumWithFields::Bar(true)
+//         ]
+//     );
+// }
