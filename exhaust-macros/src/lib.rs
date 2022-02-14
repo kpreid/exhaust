@@ -109,9 +109,7 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
             
             (
                 quote! {
-                    #iter_field_name : ::core::iter::Peekable<
-                        <#field_type as ::exhaust::Exhaust>::Iter
-                    >
+                    #iter_field_name : ::exhaust::iteration::Pei<#field_type>
                 },
                 quote! {
                     #iter_field_name : ::exhaust::iteration::peekable_exhaust::<#field_type>()
@@ -162,7 +160,8 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
             let item = #constructor { #( #target_field_names : #field_value_getters , )* };
 
             // Perform carries to other field iterators.
-            #[allow(clippy::short_circuit_statement)]
+            // && short circuiting gives us the behavior we want conveniently, whereas
+            // the nearest alternative would be to define a separate function.
             let _ = #( #carries && )* true;
 
             ::core::option::Option::Some(item)
