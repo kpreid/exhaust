@@ -156,19 +156,17 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         // TODO: fix hygeine w.r.t pattern bound fields and local variables
         let has_next = #( #iter_field_names.peek().is_some() && )* true;
         if !has_next {
-            return None;
-        }
+            None
+        } else {
+            // Gather that next item, advancing the last field iterator.
+            let item = #constructor { #( #target_field_names : #field_value_getters , )* };
 
-        // Gather that next item, advancing the last field iterator.
-        let item = #constructor { #( #target_field_names : #field_value_getters , )* };
-
-        // Perform carries to other field iterators.
-        #[allow(clippy::short_circuit_statement)]
-        {
+            // Perform carries to other field iterators.
+            #[allow(clippy::short_circuit_statement)]
             let _ = #( #carries && )* true;
-        }
 
-        Some(item)
+            Some(item)
+        }
     };
     ExhaustFields {
         field_decls: quote! {
