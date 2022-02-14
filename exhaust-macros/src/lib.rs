@@ -59,16 +59,25 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     })
 }
 
+/// Pieces of the implementation of a product iterator, over fields of a struct
+/// or enum variant.
+struct ExhaustFields {
+    /// Field declarations for the iterator state, with trailing comma.
+    fields: TokenStream2,
+    /// Field initializers for [`Self::fields`], with trailing comma.
+    initializers: TokenStream2,
+    /// Code to implement advancing the iterator. [`Self::fields`] must have been bound by
+    /// pattern match.
+    advance: TokenStream2,
+}
+
 /// Given a set of fields to exhaust, generate fields and code for the iterator to
 /// do that. This applies to structs and to enum variants.
 ///
 /// This code generator cannot be used on zero fields; the caller should handle that
 /// case, because that can be implemented more efficiently given knowledge of the case
 /// where the type is an enum.
-fn exhaust_iter_fields(
-    struct_fields: &syn::Fields,
-    constructor: TokenStream2,
-) -> (TokenStream2, TokenStream2, TokenStream2) {
+fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -> ExhaustFields {
     assert!(
         !struct_fields.is_empty(),
         "exhaust_iter_fields requires at least 1 field"
@@ -148,15 +157,15 @@ fn exhaust_iter_fields(
 
         Some(item)
     };
-    (
-        quote! {
+    ExhaustFields {
+        fields: quote! {
             #( #iterator_fields , )*
         },
-        quote! {
+        initializers: quote! {
             #( #iterator_fields_init , )*
         },
-        next_fn_implementation,
-    )
+        advance: next_fn_implementation,
+    }
 }
 
 fn exhaust_iter_struct(
@@ -166,11 +175,15 @@ fn exhaust_iter_struct(
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&target_type);
-    let (iterator_fields, iterator_fields_init, iterator_code) = if s.fields.is_empty() {
-        (
-            quote! { done: bool, },
-            quote! { done: false, },
-            quote! {
+    let ExhaustFields {
+        fields,
+        initializers,
+        advance,
+    } = if s.fields.is_empty() {
+        ExhaustFields {
+            fields: quote! { done: bool, },
+            initializers: quote! { done: false, },
+            advance: quote! {
                 if self.done {
                     None
                 } else {
@@ -178,7 +191,7 @@ fn exhaust_iter_struct(
                     Some(#target_type {})
                 }
             },
-        )
+        }
     } else {
         exhaust_iter_fields(&s.fields, target_type.to_token_stream())
     };
@@ -187,21 +200,21 @@ fn exhaust_iter_struct(
         #[doc = #doc]
         #[derive(Clone, Debug)]
         #vis struct #iterator_ident {
-            #iterator_fields
+            #fields
         }
 
         impl ::core::iter::Iterator for #iterator_ident {
             type Item = #target_type;
 
             fn next(&mut self) -> Option<Self::Item> {
-                #iterator_code
+                #advance
             }
         }
 
         impl ::core::default::Default for #iterator_ident {
             fn default() -> Self {
                 Self {
-                    #iterator_fields_init
+                    #initializers
                 }
             }
         }
@@ -247,28 +260,25 @@ fn exhaust_iter_enum(
         .iter()
         .zip(state_enum_progress_variants.iter())
         .map(|(target_variant, state_ident)| {
-            let (state_fields_decls, state_fields_init, iterator_code) =
-                if target_variant.fields.is_empty() {
-                    (
-                        quote! {},
-                        quote! {},
-                        quote! {
-                            // TODO need to integrate with advancing
-                            if self.done {
-                                None
-                            } else {
-                                self.done = true;
-                                Some(#target_type {})
-                            }
-                        },
-                    )
-                } else {
-                    let target_variant_ident = &target_variant.ident;
-                    exhaust_iter_fields(
-                        &target_variant.fields,
-                        quote! { #target_type :: #target_variant_ident },
-                    )
-                };
+            let ExhaustFields {
+                fields: state_fields_decls,
+                initializers: state_fields_init,
+                advance: _,
+            } = if target_variant.fields.is_empty() {
+                ExhaustFields {
+                    fields: quote! {},
+                    initializers: quote! {},
+                    advance: quote! {
+                        todo!("code for fieldless enums missing")
+                    },
+                }
+            } else {
+                let target_variant_ident = &target_variant.ident;
+                exhaust_iter_fields(
+                    &target_variant.fields,
+                    quote! { #target_type :: #target_variant_ident },
+                )
+            };
 
             (
                 quote! {
