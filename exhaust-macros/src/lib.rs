@@ -83,7 +83,8 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         !struct_fields.is_empty(),
         "exhaust_iter_fields requires at least 1 field"
     );
-    let (iterator_fields, iterator_fields_init, field_names, field_types): (
+    let (iterator_fields, iterator_fields_init, iter_field_names, target_field_names, field_types): (
+        Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -92,30 +93,35 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         .iter()
         .enumerate()
         .map(|(index, field)| {
-            let field_name = match &field.ident {
+            let target_field_name = match &field.ident {
                 Some(name) => name.to_token_stream(),
-                None => quote! { #index },
+                None => syn::LitInt::new(&format!("{}", index), Span::mixed_site()).to_token_stream(),
+            };
+            let iter_field_name = match &field.ident {
+                Some(name) => name.to_token_stream(),
+                None => Ident::new(&format!("f{}", index), Span::mixed_site()).to_token_stream(),
             };
             let field_type = &field.ty;
             (
                 quote! {
-                    #field_name : ::core::iter::Peekable<
+                    #iter_field_name : ::core::iter::Peekable<
                         <#field_type as ::exhaust::Exhaust>::Iter
                     >
                 },
                 quote! {
-                    #field_name : ::exhaust::iteration::peekable_exhaust::<#field_type>()
+                    #iter_field_name : ::exhaust::iteration::peekable_exhaust::<#field_type>()
                 },
-                field_name,
+                iter_field_name,
+                target_field_name,
                 field_type.clone().to_token_stream(),
             )
         })
         .multiunzip();
 
-    let field_value_getters = field_names.iter().enumerate().map(|(i, name)| {
+    let field_value_getters = iter_field_names.iter().enumerate().map(|(i, name)| {
         // unwrap() cannot fail because we checked with peek() before this code runs.
         // TODO: Can we manage to extract this pattern to a helper module?
-        if i == field_names.len() - 1 {
+        if i == iter_field_names.len() - 1 {
             // Advance the "last digit".
             quote! { ::core::iter::Iterator::next(#name).unwrap() }
         } else {
@@ -124,9 +130,14 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         }
     });
 
-    let carries = field_names
+    let carries = iter_field_names
         .iter()
-        .zip(field_names.iter().skip(1).zip(field_types.iter().skip(1)))
+        .zip(
+            iter_field_names
+                .iter()
+                .skip(1)
+                .zip(field_types.iter().skip(1)),
+        )
         .rev()
         .map(|(high, (low, low_field_type))| {
             quote! {
@@ -143,13 +154,13 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
     let next_fn_implementation = quote! {
         // Check if we have a next item
         // TODO: fix hygeine w.r.t pattern bound fields and local variables
-        let has_next = #( #field_names.peek().is_some() && )* true;
+        let has_next = #( #iter_field_names.peek().is_some() && )* true;
         if !has_next {
             return None;
         }
 
         // Gather that next item, advancing the last field iterator.
-        let item = #constructor { #( #field_names : #field_value_getters , )* };
+        let item = #constructor { #( #target_field_names : #field_value_getters , )* };
 
         // Perform carries to other field iterators.
         #[allow(clippy::short_circuit_statement)]
@@ -167,7 +178,7 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
             #( #iterator_fields_init , )*
         },
         field_pats: quote! {
-            #( #field_names , )*
+            #( #iter_field_names , )*
         },
         advance: next_fn_implementation,
     }
@@ -262,9 +273,15 @@ fn exhaust_iter_enum(
 
     // All variants of our generated enum, which are equal to the original enum
     // plus a "done" variant.
-    let (state_enum_variant_decls, state_enum_variant_idents, state_enum_variant_initializers): (
+    let (
+        state_enum_variant_decls,
+        state_enum_variant_idents,
+        state_enum_variant_initializers,
+        state_enum_field_pats,
+    ): (
         Vec<TokenStream2>,
         Vec<Ident>,
+        Vec<TokenStream2>,
         Vec<TokenStream2>,
     ) = e
         .variants
@@ -274,7 +291,7 @@ fn exhaust_iter_enum(
             let ExhaustFields {
                 field_decls: state_fields_decls,
                 initializers: state_fields_init,
-                field_pats: _,
+                field_pats,
                 advance: _,
             } = if target_variant.fields.is_empty() {
                 ExhaustFields {
@@ -303,6 +320,7 @@ fn exhaust_iter_enum(
                 quote! {
                     #state_enum_type :: #state_ident { #state_fields_init }
                 },
+                field_pats,
             )
         })
         .chain(iter::once((
@@ -311,6 +329,7 @@ fn exhaust_iter_enum(
             quote! {
                 #state_enum_type :: #done_variant {}
             },
+            quote! {},
         )))
         .multiunzip();
 
@@ -320,18 +339,23 @@ fn exhaust_iter_enum(
     let variant_next_arms = izip!(
         e.variants.iter(),
         state_enum_progress_variants.iter(),
-        state_enum_variant_idents.iter().skip(1)
+        state_enum_field_pats.iter(),
+        state_enum_variant_initializers.iter().skip(1)
     )
-    .map(|(target_enum_variant, state_ident, next_state_ident)| {
-        let target_variant_ident = &target_enum_variant.ident;
-        quote! {
-            #state_enum_type::#state_ident {} => {
-                // TODO: deal with enum fields
-                self.0 = #state_enum_type::#next_state_ident {};
-                Some(#target_type::#target_variant_ident {})
+    .map(
+        |(target_enum_variant, state_ident, pats, next_state_initializer)| {
+            let target_variant_ident = &target_enum_variant.ident;
+            quote! {
+                #state_enum_type::#state_ident { #pats } => {
+                    // TODO: deal with enum fields
+                    self.0 = #next_state_initializer;
+                    Some(#target_type::#target_variant_ident {
+
+                    })
+                }
             }
-        }
-    });
+        },
+    );
 
     Ok(quote! {
         #[doc = #doc]
