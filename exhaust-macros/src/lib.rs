@@ -63,11 +63,12 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
 /// or enum variant.
 struct ExhaustFields {
     /// Field declarations for the iterator state, with trailing comma.
-    fields: TokenStream2,
+    field_decls: TokenStream2,
     /// Field initializers for [`Self::fields`], with trailing comma.
     initializers: TokenStream2,
-    /// Code to implement advancing the iterator. [`Self::fields`] must have been bound by
-    /// pattern match.
+    /// Patterns to bind the fields.
+    field_pats: TokenStream2,
+    /// Code to implement advancing the iterator. [`Self::field_pats`] should be in scope.
     advance: TokenStream2,
 }
 
@@ -116,10 +117,10 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         // TODO: Can we manage to extract this pattern to a helper module?
         if i == field_names.len() - 1 {
             // Advance the "last digit".
-            quote! { ::core::iter::Iterator::next(&mut self.#name).unwrap() }
+            quote! { ::core::iter::Iterator::next(#name).unwrap() }
         } else {
             // Don't advance the others
-            quote! { ::core::clone::Clone::clone(::core::iter::Peekable::peek(&mut self.#name).unwrap()) }
+            quote! { ::core::clone::Clone::clone(::core::iter::Peekable::peek(#name).unwrap()) }
         }
     });
 
@@ -130,8 +131,8 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         .map(|(high, (low, low_field_type))| {
             quote! {
                 ::exhaust::iteration::carry(
-                    &mut self.#high,
-                    &mut self.#low,
+                    #high,
+                    #low,
                     ::exhaust::iteration::peekable_exhaust::<#low_field_type>
                 )
             }
@@ -141,7 +142,8 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
     // iterating over the indices it has to hardcode each one.
     let next_fn_implementation = quote! {
         // Check if we have a next item
-        let has_next = #( self.#field_names.peek().is_some() && )* true;
+        // TODO: fix hygeine w.r.t pattern bound fields and local variables
+        let has_next = #( #field_names.peek().is_some() && )* true;
         if !has_next {
             return None;
         }
@@ -158,11 +160,14 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         Some(item)
     };
     ExhaustFields {
-        fields: quote! {
+        field_decls: quote! {
             #( #iterator_fields , )*
         },
         initializers: quote! {
             #( #iterator_fields_init , )*
+        },
+        field_pats: quote! {
+            #( #field_names , )*
         },
         advance: next_fn_implementation,
     }
@@ -176,18 +181,20 @@ fn exhaust_iter_struct(
 ) -> Result<TokenStream2, syn::Error> {
     let doc = iterator_doc(&target_type);
     let ExhaustFields {
-        fields,
+        field_decls,
         initializers,
+        field_pats,
         advance,
     } = if s.fields.is_empty() {
         ExhaustFields {
-            fields: quote! { done: bool, },
+            field_decls: quote! { done: bool, },
             initializers: quote! { done: false, },
+            field_pats: quote! { done, },
             advance: quote! {
-                if self.done {
+                if *done {
                     None
                 } else {
-                    self.done = true;
+                    *done = true;
                     Some(#target_type {})
                 }
             },
@@ -200,14 +207,18 @@ fn exhaust_iter_struct(
         #[doc = #doc]
         #[derive(Clone, Debug)]
         #vis struct #iterator_ident {
-            #fields
+            #field_decls
         }
 
         impl ::core::iter::Iterator for #iterator_ident {
             type Item = #target_type;
 
             fn next(&mut self) -> Option<Self::Item> {
-                #advance
+                match self {
+                    Self { #field_pats } => {
+                        #advance
+                    }
+                }
             }
         }
 
@@ -261,13 +272,15 @@ fn exhaust_iter_enum(
         .zip(state_enum_progress_variants.iter())
         .map(|(target_variant, state_ident)| {
             let ExhaustFields {
-                fields: state_fields_decls,
+                field_decls: state_fields_decls,
                 initializers: state_fields_init,
+                field_pats: _,
                 advance: _,
             } = if target_variant.fields.is_empty() {
                 ExhaustFields {
-                    fields: quote! {},
+                    field_decls: quote! {},
                     initializers: quote! {},
+                    field_pats: quote! {},
                     advance: quote! {
                         todo!("code for fieldless enums missing")
                     },
