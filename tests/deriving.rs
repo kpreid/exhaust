@@ -1,36 +1,43 @@
-use exhaust::Exhaust;
-use std::fmt::Debug;
+// Import everything explicitly with nonstandard names (except for crates)
+// to ensure that the macro is as hygienic as it can be.
+#![no_implicit_prelude]
 
-fn c<T: Debug + Exhaust>() -> Vec<T>
+extern crate exhaust;
+extern crate std;
+
+use std::prelude::rust_2021 as p;
+
+fn c<T: std::fmt::Debug + exhaust::Exhaust>() -> std::vec::Vec<T>
 where
-    <T as Exhaust>::Iter: Debug,
+    <T as exhaust::Exhaust>::Iter: std::fmt::Debug,
 {
     let mut iterator = T::exhaust();
-    let mut result = Vec::new();
-    println!("Initial iterator state {:?}", iterator);
-    while let Some(item) = iterator.next() {
-        println!("{}. {:?} from {:?}", result.len(), item, iterator);
+    let mut result = std::vec::Vec::new();
+    std::println!("Initial iterator state {:?}", iterator);
+    while let p::Some(item) = p::Iterator::next(&mut iterator) {
+        std::println!("{}. {:?} from {:?}", result.len(), item, iterator);
         if result.len() >= 10 {
-            panic!(
+            std::panic!(
                 "exhaustive iterator didn't stop when expected;\nlast item: {:#?}\nstate: {:#?}",
-                item, iterator
+                item,
+                iterator
             );
         }
         result.push(item);
     }
-    println!("Final iterator state {:?}", iterator);
+    std::println!("Final iterator state {:?}", iterator);
     result
 }
 
-#[derive(Clone, Debug, Exhaust, PartialEq)]
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
 struct UnitStruct;
 
 #[test]
 fn struct_unit() {
-    assert_eq!(c::<UnitStruct>(), vec![UnitStruct]);
+    std::assert_eq!(c::<UnitStruct>(), std::vec![UnitStruct]);
 }
 
-#[derive(Clone, Debug, Exhaust, PartialEq)]
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
 struct SimpleStruct {
     // At least three fields are needed to check the carry logic.
     a: bool,
@@ -39,42 +46,73 @@ struct SimpleStruct {
 }
 
 #[test]
-#[rustfmt::skip]
 fn struct_simple() {
-    assert_eq!(
+    std::assert_eq!(
         c::<SimpleStruct>(),
-        vec![
-            SimpleStruct { a: false, b: false, c: false },
-            SimpleStruct { a: false, b: false, c: true },
-            SimpleStruct { a: false, b: true, c: false },
-            SimpleStruct { a: false, b: true, c: true },
-            SimpleStruct { a: true, b: false, c: false },
-            SimpleStruct { a: true, b: false, c: true },
-            SimpleStruct { a: true, b: true, c: false },
-            SimpleStruct { a: true, b: true, c: true },
+        std::vec![
+            SimpleStruct {
+                a: false,
+                b: false,
+                c: false
+            },
+            SimpleStruct {
+                a: false,
+                b: false,
+                c: true
+            },
+            SimpleStruct {
+                a: false,
+                b: true,
+                c: false
+            },
+            SimpleStruct {
+                a: false,
+                b: true,
+                c: true
+            },
+            SimpleStruct {
+                a: true,
+                b: false,
+                c: false
+            },
+            SimpleStruct {
+                a: true,
+                b: false,
+                c: true
+            },
+            SimpleStruct {
+                a: true,
+                b: true,
+                c: false
+            },
+            SimpleStruct {
+                a: true,
+                b: true,
+                c: true
+            },
         ]
     )
 }
 
-#[derive(Clone, Debug, Exhaust, PartialEq)]
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
 enum EmptyEnum {}
 
 #[test]
 fn enum_empty() {
-    assert_eq!(c::<EmptyEnum>(), vec![]);
+    std::assert_eq!(c::<EmptyEnum>(), std::vec![]);
 }
 
-#[derive(Clone, Debug, Exhaust, PartialEq)]
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
 enum OneValueEnum {
     Foo,
 }
 
 #[test]
 fn enum_one_value() {
-    assert_eq!(c::<OneValueEnum>(), vec![OneValueEnum::Foo]);
+    std::assert_eq!(c::<OneValueEnum>(), std::vec![OneValueEnum::Foo]);
 }
 
-#[derive(Clone, Debug, Exhaust, PartialEq)]
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
 enum FieldlessEnum {
     Foo,
     Bar,
@@ -83,13 +121,13 @@ enum FieldlessEnum {
 
 #[test]
 fn enum_fieldless_multi() {
-    assert_eq!(
+    std::assert_eq!(
         c::<FieldlessEnum>(),
-        vec![FieldlessEnum::Foo, FieldlessEnum::Bar, FieldlessEnum::Baz]
+        std::vec![FieldlessEnum::Foo, FieldlessEnum::Bar, FieldlessEnum::Baz]
     );
 }
 
-#[derive(Clone, Debug, Exhaust, PartialEq)]
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
 enum EnumWithFields {
     Foo(bool, bool),
     Bar(bool),
@@ -97,9 +135,9 @@ enum EnumWithFields {
 
 #[test]
 fn enum_fields() {
-    assert_eq!(
+    std::assert_eq!(
         c::<EnumWithFields>(),
-        vec![
+        std::vec![
             EnumWithFields::Foo(false, false),
             EnumWithFields::Foo(false, true),
             EnumWithFields::Foo(true, false),
@@ -111,9 +149,20 @@ fn enum_fields() {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Exhaust)]
+#[derive(Clone, exhaust::Exhaust)]
 enum VariableNameHygieneTest {
     // These field names shouldn't conflict with internal variables in the generated impl.
     Foo { has_next: (), item: (), f0: () },
     Bar(()),
 }
+
+/// The presence of this trait's methods should not disrupt the generated code
+#[allow(dead_code)]
+trait ConfusingTraitInScope {
+    fn next(&self, _dont_call_me: ()) {}
+    fn peekable(&self, _dont_call_me: ()) {}
+    fn clone(&self, _dont_call_me: ()) {}
+    fn unwrap(&self, _dont_call_me: ()) {}
+    fn default(_dont_call_me: ()) {}
+}
+impl<T> ConfusingTraitInScope for T {}

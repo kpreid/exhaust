@@ -165,9 +165,9 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
             #[allow(clippy::short_circuit_statement)]
             let _ = #( #carries && )* true;
 
-            Some(item)
+            ::core::option::Option::Some(item)
         } else {
-            None
+            ::core::option::Option::None
         }
     };
     ExhaustFields {
@@ -203,10 +203,10 @@ fn exhaust_iter_struct(
             field_pats: quote! { done, },
             advance: quote! {
                 if *done {
-                    None
+                    ::core::option::Option::None
                 } else {
                     *done = true;
-                    Some(#target_type {})
+                    ::core::option::Option::Some(#target_type {})
                 }
             },
         }
@@ -224,7 +224,7 @@ fn exhaust_iter_struct(
         impl ::core::iter::Iterator for #iterator_ident {
             type Item = #target_type;
 
-            fn next(&mut self) -> Option<Self::Item> {
+            fn next(&mut self) -> ::core::option::Option<Self::Item> {
                 match self {
                     Self { #field_pats } => {
                         #advance
@@ -350,17 +350,17 @@ fn exhaust_iter_enum(
             let advancer = if target_enum_variant.fields.is_empty() {
                 quote! {
                     self.0 = #next_state_initializer;
-                    Some(#target_type::#target_variant_ident {})
+                    ::core::option::Option::Some(#target_type::#target_variant_ident {})
                 }
             } else {
                 quote! {
                     let maybe_variant = { #field_advancer };
                     match maybe_variant {
-                        Some(v) => Some(v),
-                        None => {
+                        ::core::option::Option::Some(v) => ::core::option::Option::Some(v),
+                        ::core::option::Option::None => {
                             self.0 = #next_state_initializer;
                             // TODO: recursion is a kludge here; rewrite as loop{}
-                            self.next()
+                            ::core::iter::Iterator::next(self)
                         }
                     }
                 }
@@ -384,7 +384,7 @@ fn exhaust_iter_enum(
             fn next(&mut self) -> ::core::option::Option<Self::Item> {
                 match &mut self.0 {
                     #( #variant_next_arms , )*
-                    #state_enum_type::#done_variant => None,
+                    #state_enum_type::#done_variant => ::core::option::Option::None,
                 }
             }
         }
