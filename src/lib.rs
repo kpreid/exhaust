@@ -84,8 +84,8 @@ pub trait Exhaust: Clone {
     /// * If there is any value `a` of type `Self` for which `a != a`, then [`Exhaust`]
     ///   must produce one or more such values.
     /// * `exhaust()` does not panic, nor does the iterator it returns.
-    /// * Purity/determinism: every call to `Self::exhaust()` or [`Clone::clone()`] of a returned
-    ///   iterator should produce the same sequence of items.
+    /// * Purity/determinism: every call to `Self::exhaust()`, or [`Clone::clone()`] of a returned
+    ///   iterator, should produce the same sequence of items.
     /// * The iterator has a finite length, that is feasible to actually reach.
     ///
     /// [`Exhaust`] is not an `unsafe trait`, and as such, no soundness property should rest
