@@ -77,3 +77,8 @@ fn impl_array_of_3() {
         ]
     );
 }
+
+#[test]
+fn impl_option() {
+    assert_eq!(c::<Option<bool>>(), vec![None, Some(false), Some(true)]);
+}

@@ -143,6 +143,16 @@ impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
     }
 }
 
+impl<T: Exhaust> Exhaust for Option<T> {
+    #![allow(clippy::type_complexity)] // TODO: use macro to generate an opaque iter
+    type Iter =
+        iter::Chain<iter::Once<Option<T>>, iter::Map<<T as Exhaust>::Iter, fn(T) -> Option<T>>>;
+
+    fn exhaust() -> Self::Iter {
+        iter::once(None).chain(T::exhaust().map(Some as _))
+    }
+}
+
 #[cfg(feature = "alloc")]
 mod alloc_impls {
     use alloc::boxed::Box;
