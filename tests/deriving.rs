@@ -99,6 +99,7 @@ struct GenericStruct<T> {
     a: T,
     b: T,
     // TODO: Also validate that trait bounds on the struct are handled
+    // TODO: Test with lifetime and const generics.
 }
 
 #[test]

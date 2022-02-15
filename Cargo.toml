@@ -10,7 +10,7 @@ version = "0.1.0"
 edition = "2021"
 # TODO: figure out MSRV
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
-# TODO: repository
+repository = "https://github.com/kpreid/exhaust/"
 license = "MIT OR Apache-2.0"
 categories = ["algorithms", "rust-patterns", "no-std"]
 keywords = ["exhaustive"]

@@ -52,9 +52,6 @@ fn exhaustive_test() -> Result<(), xaction::Error> {
     Ok(())
 }
 
-/// Run check or tests for all targets.
-///
-/// TODO: run tests with and without relevant features, like rayon
 fn test_under_conditions<'a, A: AsRef<[&'a str]>>(flags: A) -> Result<(), xaction::Error> {
     cargo().arg("test").args(flags.as_ref()).run()?;
     Ok(())

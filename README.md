@@ -10,7 +10,7 @@ Exhaustive iteration may be useful for exhaustive testing, working with enums, a
 Project status and stability
 ----------------------------
 
-`exhaust` is currently in an early stage of development, but I intend to quickly bring it to feature-completeness within its narrow scope, making it a library that can be relied upon.
+`exhaust` is currently in an early stage of development, and has been published for the sake of receiving feedback. I intend to quickly bring it to feature-completeness within its narrow scope, making it a library that can be relied upon by Rust programmers.
 
 License
 -------

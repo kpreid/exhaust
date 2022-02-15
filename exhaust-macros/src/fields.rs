@@ -72,7 +72,7 @@ pub(crate) fn exhaust_iter_fields(
         .enumerate()
         .map(|(i, name)| {
             // unwrap() cannot fail because we checked with peek() before this code runs.
-            // TODO: Can we manage to extract this pattern to a helper module?
+            // TODO: Can we fit more of this in a non-macro helper?
             if i == iter_field_names.len() - 1 {
                 // Advance the "last digit".
                 quote! { ::core::iter::Iterator::next(#name).unwrap() }

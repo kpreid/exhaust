@@ -3,7 +3,7 @@ name = "exhaust-macros"
 version = "0.1.0"
 edition = "2021"
 description = "Proc-macro support for the 'exhaust' library."
-# TODO: repository
+repository = "https://github.com/kpreid/exhaust/"
 license = "MIT OR Apache-2.0"
 
 [lib]
