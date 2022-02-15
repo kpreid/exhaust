@@ -168,6 +168,24 @@ fn enum_fields() {
     );
 }
 
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+enum EnumWithGeneric<T> {
+    N,
+    S(T),
+}
+
+#[test]
+fn enum_generic() {
+    std::assert_eq!(
+        c::<EnumWithGeneric<bool>>(),
+        std::vec![
+            EnumWithGeneric::N,
+            EnumWithGeneric::S(false),
+            EnumWithGeneric::S(true),
+        ]
+    );
+}
+
 #[allow(dead_code)]
 #[derive(Clone, exhaust::Exhaust)]
 enum VariableNameHygieneTest {

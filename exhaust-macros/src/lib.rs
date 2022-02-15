@@ -442,13 +442,25 @@ fn exhaust_iter_enum(
         },
     );
 
+    // TODO: this code is duplicated with the struct version
+    let (impl_generics, ty_generics, augmented_where_predicates) =
+        split_generics_and_bound(&generics, syn::parse_quote! { ::exhaust::Exhaust });
+
+    let (_, _, debug_where_predicates) = split_generics_and_bound(
+        &generics,
+        syn::parse_quote! { ::exhaust::Exhaust + ::core::fmt::Debug },
+    );
+
     Ok(quote! {
         #[doc = #doc]
-        #[derive(Clone, Debug)]
-        #vis struct #iterator_ident(#state_enum_type);
+        #[derive(Clone)]
+        #vis struct #iterator_ident #ty_generics
+        (#state_enum_type #ty_generics)
+        where #augmented_where_predicates;
 
-        impl ::core::iter::Iterator for #iterator_ident {
-            type Item = #target_type;
+        impl #impl_generics ::core::iter::Iterator for #iterator_ident #ty_generics
+        where #augmented_where_predicates {
+            type Item = #target_type #ty_generics;
 
             fn next(&mut self) -> ::core::option::Option<Self::Item> {
                 match &mut self.0 {
@@ -458,14 +470,28 @@ fn exhaust_iter_enum(
             }
         }
 
-        impl ::core::default::Default for #iterator_ident {
+        impl #impl_generics ::core::default::Default for #iterator_ident #ty_generics
+        where #augmented_where_predicates {
             fn default() -> Self {
                 Self(#first_state_variant_initializer)
             }
         }
 
-        #[derive(Clone, Debug)]
-        enum #state_enum_type {
+        // A manual impl of Debug would be required to provide the right bounds on the generics,
+        // and given that we're implementing anyway, we might as well provide a cleaner format.
+        impl #impl_generics ::core::fmt::Debug for #iterator_ident #ty_generics
+        where #debug_where_predicates {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                // TODO: print state
+                f.debug_struct(stringify!(#iterator_ident))
+                    .finish_non_exhaustive()
+            }
+        }
+
+        #[derive(Clone)]
+        enum #state_enum_type #ty_generics
+        where #augmented_where_predicates
+        {
             #( #state_enum_variant_decls , )*
         }
     })
