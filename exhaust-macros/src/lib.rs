@@ -4,9 +4,11 @@ use itertools::{izip, Itertools as _};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
-use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, DeriveInput};
+
+mod common;
+use common::ExhaustContext;
 
 mod fields;
 use fields::{exhaust_iter_fields, ExhaustFields};
@@ -29,30 +31,28 @@ pub fn derive_exhaust(input: TokenStream) -> TokenStream {
 
 fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     let DeriveInput {
-        ident: target_type_ident,
+        ident: item_type_name,
         attrs: _,
         vis,
         generics,
         data,
     } = input;
 
-    let iterator_ident = Ident::new(&format!("Exhaust{}", target_type_ident), Span::mixed_site());
+    let ctx = ExhaustContext {
+        vis,
+        generics,
+        iterator_type_name: Ident::new(&format!("Exhaust{}", item_type_name), Span::mixed_site()),
+        item_type_name,
+    };
+    let ExhaustContext {
+        item_type_name,
+        iterator_type_name,
+        ..
+    } = &ctx;
 
     let iterator_implementation = match data {
-        syn::Data::Struct(s) => exhaust_iter_struct(
-            s,
-            vis,
-            generics.clone(),
-            target_type_ident.clone(),
-            iterator_ident.clone(),
-        ),
-        syn::Data::Enum(e) => exhaust_iter_enum(
-            e,
-            vis,
-            generics.clone(),
-            target_type_ident.clone(),
-            iterator_ident.clone(),
-        ),
+        syn::Data::Struct(s) => exhaust_iter_struct(s, &ctx),
+        syn::Data::Enum(e) => exhaust_iter_enum(e, &ctx),
         syn::Data::Union(syn::DataUnion { union_token, .. }) => Err(syn::Error::new(
             union_token.span,
             "derive(Exhaust) does not support unions",
@@ -60,12 +60,12 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     }?;
 
     let (impl_generics, ty_generics, augmented_where_predicates) =
-        split_generics_and_bound(&generics, syn::parse_quote! { ::exhaust::Exhaust });
+        ctx.generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust });
 
     Ok(quote! {
-        impl #impl_generics ::exhaust::Exhaust for #target_type_ident #ty_generics
+        impl #impl_generics ::exhaust::Exhaust for #item_type_name #ty_generics
         where #augmented_where_predicates {
-            type Iter = #iterator_ident #ty_generics;
+            type Iter = #iterator_type_name #ty_generics;
             fn exhaust() -> Self::Iter {
                 ::core::default::Default::default()
             }
@@ -77,12 +77,13 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
 
 fn exhaust_iter_struct(
     s: syn::DataStruct,
-    vis: syn::Visibility,
-    generics: syn::Generics,
-    target_type: Ident,
-    iterator_ident: Ident,
+    ctx: &ExhaustContext,
 ) -> Result<TokenStream2, syn::Error> {
-    let doc = iterator_doc(&target_type);
+    let doc = ctx.iterator_doc();
+    let vis = &ctx.vis;
+    let item_type_name = &ctx.item_type_name;
+    let iterator_type_name = &ctx.iterator_type_name;
+
     let ExhaustFields {
         field_decls,
         initializers,
@@ -98,106 +99,52 @@ fn exhaust_iter_struct(
                     ::core::option::Option::None
                 } else {
                     *done = true;
-                    ::core::option::Option::Some(#target_type {})
+                    ::core::option::Option::Some(#item_type_name {})
                 }
             },
         }
     } else {
-        exhaust_iter_fields(&s.fields, target_type.to_token_stream())
+        exhaust_iter_fields(&s.fields, item_type_name.to_token_stream())
     };
 
-    let (impl_generics, ty_generics, augmented_where_predicates) =
-        split_generics_and_bound(&generics, syn::parse_quote! { ::exhaust::Exhaust });
-
-    let (_, _, debug_where_predicates) = split_generics_and_bound(
-        &generics,
-        syn::parse_quote! { ::exhaust::Exhaust + ::core::fmt::Debug },
-    );
+    let (_, ty_generics, augmented_where_predicates) =
+        ctx.generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust });
 
     // Note: The iterator must have trait bounds because its fields, being of type
     // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
 
+    let impls = ctx.impl_iterator_traits(
+        quote! {
+            match self {
+                Self { #field_pats } => {
+                    #advance
+                }
+            }
+        },
+        quote! { Self { #initializers } },
+    );
+
     Ok(quote! {
         #[doc = #doc]
         #[derive(Clone)]
-        #vis struct #iterator_ident #ty_generics
+        #vis struct #iterator_type_name #ty_generics
         where #augmented_where_predicates {
             #field_decls
         }
 
-        impl #impl_generics ::core::iter::Iterator for #iterator_ident #ty_generics
-        where #augmented_where_predicates {
-            type Item = #target_type #ty_generics;
-
-            fn next(&mut self) -> ::core::option::Option<Self::Item> {
-                match self {
-                    Self { #field_pats } => {
-                        #advance
-                    }
-                }
-            }
-        }
-
-        impl #impl_generics ::core::default::Default for #iterator_ident #ty_generics
-        where #augmented_where_predicates {
-            fn default() -> Self {
-                Self {
-                    #initializers
-                }
-            }
-        }
-
-        // A manual impl of Debug would be required to provide the right bounds on the generics,
-        // and given that we're implementing anyway, we might as well provide a cleaner format.
-        impl #impl_generics ::core::fmt::Debug for #iterator_ident #ty_generics
-        where #debug_where_predicates {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                // TODO: print fields
-                f.debug_struct(stringify!(#iterator_ident))
-                    .finish_non_exhaustive()
-            }
-        }
+        #impls
     })
 }
 
-fn split_generics_and_bound(
-    generics: &syn::Generics,
-    additional_bounds: Punctuated<syn::TypeParamBound, syn::Token![+]>,
-) -> (
-    syn::ImplGenerics<'_>,
-    syn::TypeGenerics<'_>,
-    Punctuated<syn::WherePredicate, syn::token::Comma>,
-) {
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let mut augmented_where_predicates = match where_clause {
-        Some(clause) => clause.predicates.clone(),
-        None => Punctuated::new(),
-    };
-    for g in generics.params.iter() {
-        if let syn::GenericParam::Type(g) = g {
-            augmented_where_predicates.push(syn::WherePredicate::Type(syn::PredicateType {
-                lifetimes: None,
-                bounded_ty: syn::Type::Verbatim(g.ident.to_token_stream()),
-                colon_token: <_>::default(),
-                bounds: additional_bounds.clone(),
-            }));
-        }
-    }
-    (impl_generics, ty_generics, augmented_where_predicates)
-}
-
-fn exhaust_iter_enum(
-    e: syn::DataEnum,
-    vis: syn::Visibility,
-    generics: syn::Generics,
-    target_type: Ident,
-    iterator_ident: Ident,
-) -> Result<TokenStream2, syn::Error> {
-    let doc = iterator_doc(&target_type);
+fn exhaust_iter_enum(e: syn::DataEnum, ctx: &ExhaustContext) -> Result<TokenStream2, syn::Error> {
+    let doc = ctx.iterator_doc();
+    let vis = &ctx.vis;
+    let item_type_name = &ctx.item_type_name;
+    let iterator_type_name = &ctx.iterator_type_name;
 
     // TODO: hide the declaration of this
     let state_enum_type = Ident::new(
-        &format!("__ExhaustEnum_{}", target_type),
+        &format!("__ExhaustEnum_{}", item_type_name),
         Span::mixed_site(),
     );
 
@@ -251,7 +198,7 @@ fn exhaust_iter_enum(
                 let target_variant_ident = &target_variant.ident;
                 fields::exhaust_iter_fields(
                     &target_variant.fields,
-                    quote! { #target_type :: #target_variant_ident },
+                    quote! { #item_type_name :: #target_variant_ident },
                 )
             };
 
@@ -294,7 +241,7 @@ fn exhaust_iter_enum(
             let advancer = if target_enum_variant.fields.is_empty() {
                 quote! {
                     self.0 = #next_state_initializer;
-                    ::core::option::Option::Some(#target_type::#target_variant_ident {})
+                    ::core::option::Option::Some(#item_type_name::#target_variant_ident {})
                 }
             } else {
                 quote! {
@@ -317,51 +264,29 @@ fn exhaust_iter_enum(
         },
     );
 
-    // TODO: this code is duplicated with the struct version
-    let (impl_generics, ty_generics, augmented_where_predicates) =
-        split_generics_and_bound(&generics, syn::parse_quote! { ::exhaust::Exhaust });
+    let (_, ty_generics, augmented_where_predicates) =
+        ctx.generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust });
 
-    let (_, _, debug_where_predicates) = split_generics_and_bound(
-        &generics,
-        syn::parse_quote! { ::exhaust::Exhaust + ::core::fmt::Debug },
+    let impls = ctx.impl_iterator_traits(
+        quote! {
+            match &mut self.0 {
+                #( #variant_next_arms , )*
+                #state_enum_type::#done_variant => ::core::option::Option::None,
+            }
+        },
+        quote! {
+            Self(#first_state_variant_initializer)
+        },
     );
 
     Ok(quote! {
         #[doc = #doc]
         #[derive(Clone)]
-        #vis struct #iterator_ident #ty_generics
+        #vis struct #iterator_type_name #ty_generics
         (#state_enum_type #ty_generics)
         where #augmented_where_predicates;
 
-        impl #impl_generics ::core::iter::Iterator for #iterator_ident #ty_generics
-        where #augmented_where_predicates {
-            type Item = #target_type #ty_generics;
-
-            fn next(&mut self) -> ::core::option::Option<Self::Item> {
-                match &mut self.0 {
-                    #( #variant_next_arms , )*
-                    #state_enum_type::#done_variant => ::core::option::Option::None,
-                }
-            }
-        }
-
-        impl #impl_generics ::core::default::Default for #iterator_ident #ty_generics
-        where #augmented_where_predicates {
-            fn default() -> Self {
-                Self(#first_state_variant_initializer)
-            }
-        }
-
-        // A manual impl of Debug would be required to provide the right bounds on the generics,
-        // and given that we're implementing anyway, we might as well provide a cleaner format.
-        impl #impl_generics ::core::fmt::Debug for #iterator_ident #ty_generics
-        where #debug_where_predicates {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                // TODO: print state
-                f.debug_struct(stringify!(#iterator_ident))
-                    .finish_non_exhaustive()
-            }
-        }
+        #impls
 
         #[derive(Clone)]
         enum #state_enum_type #ty_generics
@@ -370,8 +295,4 @@ fn exhaust_iter_enum(
             #( #state_enum_variant_decls , )*
         }
     })
-}
-
-fn iterator_doc(type_name: &Ident) -> String {
-    format!("Iterator over all values of [`{}`].", type_name)
 }
