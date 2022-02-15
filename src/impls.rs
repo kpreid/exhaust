@@ -34,6 +34,13 @@ impl Exhaust for () {
     }
 }
 
+impl<T: ?Sized> Exhaust for core::marker::PhantomData<T> {
+    type Iter = iter::Once<core::marker::PhantomData<T>>;
+    fn exhaust() -> Self::Iter {
+        iter::once(core::marker::PhantomData)
+    }
+}
+
 impl Exhaust for core::convert::Infallible {
     type Iter = iter::Empty<core::convert::Infallible>;
     fn exhaust() -> Self::Iter {

@@ -9,6 +9,12 @@ fn impl_unit() {
     assert_eq!(c::<()>(), vec![()]);
 }
 
+#[test]
+fn impl_phantom_data() {
+    use core::marker::PhantomData;
+    assert_eq!(c::<PhantomData<bool>>(), vec![PhantomData]);
+}
+
 /// [`core::convert::Infallible`] is not especially interesting in its role as an error type,
 /// but it is also the only _uninhabited_ type in the standard library.
 #[test]
