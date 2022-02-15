@@ -4,6 +4,7 @@ use itertools::{izip, Itertools as _};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, DeriveInput};
 
@@ -28,28 +29,40 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         ident: target_type_ident,
         attrs: _,
         vis,
-        generics: _, // TODO: process generics
+        generics,
         data,
     } = input;
 
     let iterator_ident = Ident::new(&format!("Exhaust{}", target_type_ident), Span::mixed_site());
 
     let iterator_implementation = match data {
-        syn::Data::Struct(s) => {
-            exhaust_iter_struct(s, vis, target_type_ident.clone(), iterator_ident.clone())
-        }
-        syn::Data::Enum(e) => {
-            exhaust_iter_enum(e, vis, target_type_ident.clone(), iterator_ident.clone())
-        }
+        syn::Data::Struct(s) => exhaust_iter_struct(
+            s,
+            vis,
+            generics.clone(),
+            target_type_ident.clone(),
+            iterator_ident.clone(),
+        ),
+        syn::Data::Enum(e) => exhaust_iter_enum(
+            e,
+            vis,
+            generics.clone(),
+            target_type_ident.clone(),
+            iterator_ident.clone(),
+        ),
         syn::Data::Union(syn::DataUnion { union_token, .. }) => Err(syn::Error::new(
             union_token.span,
             "derive(Exhaust) does not support unions",
         )),
     }?;
 
+    let (impl_generics, ty_generics, augmented_where_predicates) =
+        split_generics_and_bound(&generics, syn::parse_quote! { ::exhaust::Exhaust });
+
     Ok(quote! {
-        impl ::exhaust::Exhaust for #target_type_ident {
-            type Iter = #iterator_ident;
+        impl #impl_generics ::exhaust::Exhaust for #target_type_ident #ty_generics
+        where #augmented_where_predicates {
+            type Iter = #iterator_ident #ty_generics;
             fn exhaust() -> Self::Iter {
                 ::core::default::Default::default()
             }
@@ -104,9 +117,9 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
                 Some(name) => format!("iter_f_{}", name),
                 None => format!("iter_f_{}", index),
             }, Span::mixed_site()).to_token_stream();
-            
+
             let field_type = &field.ty;
-            
+
             (
                 quote! {
                     #iter_field_name : ::exhaust::iteration::Pei<#field_type>
@@ -121,17 +134,21 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         })
         .multiunzip();
 
-    let field_value_getters = iter_field_names.iter().enumerate().map(|(i, name)| {
-        // unwrap() cannot fail because we checked with peek() before this code runs.
-        // TODO: Can we manage to extract this pattern to a helper module?
-        if i == iter_field_names.len() - 1 {
-            // Advance the "last digit".
-            quote! { ::core::iter::Iterator::next(#name).unwrap() }
-        } else {
-            // Don't advance the others
-            quote! { ::core::clone::Clone::clone(::core::iter::Peekable::peek(#name).unwrap()) }
-        }
-    });
+    let field_value_getters: Vec<TokenStream2> = iter_field_names
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            // unwrap() cannot fail because we checked with peek() before this code runs.
+            // TODO: Can we manage to extract this pattern to a helper module?
+            if i == iter_field_names.len() - 1 {
+                // Advance the "last digit".
+                quote! { ::core::iter::Iterator::next(#name).unwrap() }
+            } else {
+                // Don't advance the others
+                quote! { ::core::clone::Clone::clone(::core::iter::Peekable::peek(#name).unwrap()) }
+            }
+        })
+        .collect();
 
     let carries = iter_field_names
         .iter()
@@ -154,7 +171,7 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
 
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
-    let next_fn_implementation = quote! {
+    let advance = quote! {
         if #( #iter_field_names.peek().is_some() && )* true {
             // Gather that next item, advancing the last field iterator only.
             let item = #constructor { #( #target_field_names : #field_value_getters , )* };
@@ -179,13 +196,14 @@ fn exhaust_iter_fields(struct_fields: &syn::Fields, constructor: TokenStream2) -
         field_pats: quote! {
             #( #iter_field_names , )*
         },
-        advance: next_fn_implementation,
+        advance,
     }
 }
 
 fn exhaust_iter_struct(
     s: syn::DataStruct,
     vis: syn::Visibility,
+    generics: syn::Generics,
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {
@@ -213,15 +231,28 @@ fn exhaust_iter_struct(
         exhaust_iter_fields(&s.fields, target_type.to_token_stream())
     };
 
+    let (impl_generics, ty_generics, augmented_where_predicates) =
+        split_generics_and_bound(&generics, syn::parse_quote! { ::exhaust::Exhaust });
+
+    let (_, _, debug_where_predicates) = split_generics_and_bound(
+        &generics,
+        syn::parse_quote! { ::exhaust::Exhaust + ::core::fmt::Debug },
+    );
+
+    // Note: The iterator must have trait bounds because its fields, being of type
+    // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
+
     Ok(quote! {
         #[doc = #doc]
-        #[derive(Clone, Debug)]
-        #vis struct #iterator_ident {
+        #[derive(Clone)]
+        #vis struct #iterator_ident #ty_generics
+        where #augmented_where_predicates {
             #field_decls
         }
 
-        impl ::core::iter::Iterator for #iterator_ident {
-            type Item = #target_type;
+        impl #impl_generics ::core::iter::Iterator for #iterator_ident #ty_generics
+        where #augmented_where_predicates {
+            type Item = #target_type #ty_generics;
 
             fn next(&mut self) -> ::core::option::Option<Self::Item> {
                 match self {
@@ -232,19 +263,58 @@ fn exhaust_iter_struct(
             }
         }
 
-        impl ::core::default::Default for #iterator_ident {
+        impl #impl_generics ::core::default::Default for #iterator_ident #ty_generics
+        where #augmented_where_predicates {
             fn default() -> Self {
                 Self {
                     #initializers
                 }
             }
         }
+
+        // A manual impl of Debug would be required to provide the right bounds on the generics,
+        // and given that we're implementing anyway, we might as well provide a cleaner format.
+        impl #impl_generics ::core::fmt::Debug for #iterator_ident #ty_generics
+        where #debug_where_predicates {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                // TODO: print fields
+                f.debug_struct(stringify!(#iterator_ident))
+                    .finish_non_exhaustive()
+            }
+        }
     })
+}
+
+fn split_generics_and_bound(
+    generics: &syn::Generics,
+    additional_bounds: Punctuated<syn::TypeParamBound, syn::Token![+]>,
+) -> (
+    syn::ImplGenerics<'_>,
+    syn::TypeGenerics<'_>,
+    Punctuated<syn::WherePredicate, syn::token::Comma>,
+) {
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let mut augmented_where_predicates = match where_clause {
+        Some(clause) => clause.predicates.clone(),
+        None => Punctuated::new(),
+    };
+    for g in generics.params.iter() {
+        if let syn::GenericParam::Type(g) = g {
+            augmented_where_predicates.push(syn::WherePredicate::Type(syn::PredicateType {
+                lifetimes: None,
+                bounded_ty: syn::Type::Verbatim(g.ident.to_token_stream()),
+                colon_token: <_>::default(),
+                bounds: additional_bounds.clone(),
+            }));
+        }
+    }
+    (impl_generics, ty_generics, augmented_where_predicates)
 }
 
 fn exhaust_iter_enum(
     e: syn::DataEnum,
     vis: syn::Visibility,
+    generics: syn::Generics,
     target_type: Ident,
     iterator_ident: Ident,
 ) -> Result<TokenStream2, syn::Error> {

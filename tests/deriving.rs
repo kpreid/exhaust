@@ -95,6 +95,26 @@ fn struct_simple() {
 }
 
 #[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+struct GenericStruct<T> {
+    a: T,
+    b: T,
+    // TODO: Also validate that trait bounds on the struct are handled
+}
+
+#[test]
+fn struct_generic() {
+    std::assert_eq!(
+        c::<GenericStruct<bool>>(),
+        std::vec![
+            GenericStruct { a: false, b: false },
+            GenericStruct { a: false, b: true },
+            GenericStruct { a: true, b: false },
+            GenericStruct { a: true, b: true },
+        ]
+    )
+}
+
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
 enum EmptyEnum {}
 
 #[test]
