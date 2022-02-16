@@ -36,7 +36,6 @@ mod std_impls;
 
 // TODO: The following implementations might be missing:
 //   Primitive tuples (except for unit)
-//   core::cmp::Ordering
 //   core::iter::* (combinatorial explosion fun!)
 //     Iterators for std library types *not* in core::iter
 //   core::hash::*
@@ -50,4 +49,4 @@ mod std_impls;
 //   core::result::Result
 //   core::sync::atomic::*
 //   core::task::*
-//   std:: expansions of core modules already covered (are there any?)
+//   std::-only modules, and expansions of core modules already covered (are there any?)
