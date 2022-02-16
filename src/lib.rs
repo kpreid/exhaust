@@ -38,6 +38,8 @@ pub mod iteration;
 ///
 /// # Examples
 ///
+/// Using [the derive macro](macro@Exhaust) to implement the trait:
+///
 /// ```
 /// use exhaust::Exhaust;
 ///
@@ -63,6 +65,52 @@ pub mod iteration;
 ///         Foo { a: true, b: Bar::Two(false) },
 ///         Foo { a: true, b: Bar::Two(true) },
 ///     ],
+/// );
+/// ```
+///
+/// Writing a manual implementation of `Exhaust`:
+///
+/// ```
+/// use exhaust::Exhaust;
+///
+/// #[derive(Clone)]
+/// struct AsciiLetter(char);
+///
+/// impl Exhaust for AsciiLetter {
+///     type Iter = ExhaustAsciiLetter;
+///     fn exhaust() -> Self::Iter {
+///         ExhaustAsciiLetter { next: 'A' }
+///     }
+/// }
+///
+/// #[derive(Clone)]
+/// struct ExhaustAsciiLetter {
+///     next: char
+/// }
+///
+/// impl Iterator for ExhaustAsciiLetter {
+///     type Item = AsciiLetter;
+///
+///     fn next(&mut self) -> Option<Self::Item> {
+///         match self.next {
+///             'A'..='Y' | 'a'..='z' => {
+///                 let item = self.next;
+///                 self.next = char::from_u32(self.next as u32 + 1).unwrap();
+///                 Some(AsciiLetter(item))
+///             }
+///             'Z' => {
+///                 self.next = 'a';
+///                 Some(AsciiLetter('Z'))
+///             }
+///             '{' => None,  // ('z' + 1)
+///             _ => unreachable!(),
+///         }
+///     }
+/// }
+///
+/// assert_eq!(
+///     AsciiLetter::exhaust().map(|l| l.0).collect::<String>(),
+///     String::from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"),
 /// );
 /// ```
 pub trait Exhaust: Clone {
