@@ -14,6 +14,8 @@
 //!   but that would be almost certainly pointless).
 //! * [`u64`], [`i64`], and [`f64`], because they are too large to feasibly exhaust.
 //! * [`core::cell::UnsafeCell`], because it does not implement [`Clone`].
+//! * [`core::mem::ManuallyDrop`], because it would be a memory leak.
+//! * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
 //!
 //! [`Exhaust`]: crate::Exhaust
 
@@ -48,5 +50,10 @@ mod std_impls;
 //   core::pin::Pin
 //   core::result::Result
 //   core::sync::atomic::*
-//   core::task::*
-//   std::-only modules, and expansions of core modules already covered (are there any?)
+//   core::task::Poll
+//   alloc::borrow::Cow (with the caveat of no Borroweds)
+//   alloc::collections::{BinaryHeap, BTreeMap, BTreeSet}
+//   std::collections::{HashMap, HashSet}
+//   std::fs::{OpenOptions, Permissions} (avoid since it's non-exhaustive?)
+//   std::io::{BufReader, BufWriter, Stdin, Stdout, Stderr, Sink}
+//   std::sync::{Mutex, Once, RwLock, TryLockError}
