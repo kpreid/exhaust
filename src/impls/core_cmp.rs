@@ -1,11 +1,8 @@
-use crate::patterns::impl_newtype_generic;
-use crate::Exhaust;
+use crate::patterns::{impl_newtype_generic, impl_via_array};
 
 impl_newtype_generic!(T: [], core::cmp::Reverse<T>, core::cmp::Reverse);
 
-impl Exhaust for core::cmp::Ordering {
-    type Iter = core::array::IntoIter<Self, 3>;
-    fn exhaust() -> Self::Iter {
-        [Self::Less, Self::Equal, Self::Greater].into_iter()
-    }
-}
+impl_via_array!(
+    core::cmp::Ordering,
+    [Self::Less, Self::Equal, Self::Greater]
+);

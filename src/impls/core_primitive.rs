@@ -1,7 +1,7 @@
 use core::iter;
 
 use crate::iteration::{carry, peekable_exhaust};
-use crate::patterns::impl_via_range;
+use crate::patterns::{impl_via_array, impl_via_range};
 use crate::Exhaust;
 
 impl Exhaust for () {
@@ -11,12 +11,7 @@ impl Exhaust for () {
     }
 }
 
-impl Exhaust for bool {
-    type Iter = core::array::IntoIter<bool, 2>;
-    fn exhaust() -> Self::Iter {
-        [false, true].into_iter()
-    }
-}
+impl_via_array!(bool, [false, true]);
 
 impl_via_range!(char, '\x00', char::MAX);
 impl_via_range!(i8, i8::MIN, i8::MAX);
