@@ -31,6 +31,29 @@ fn impl_bool() {
 }
 
 #[test]
+fn impl_char() {
+    use std::collections::HashSet;
+    let mut expected = HashSet::from([
+        // Edge-case checking: endpoints of the valid range of char.
+        '\u{0}',
+        '\u{D7FF}',
+        '\u{E000}',
+        '\u{10FFFF}',
+    ]);
+    let mut count = 0;
+    for c in char::exhaust() {
+        expected.remove(&c);
+        count += 1;
+    }
+    assert_eq!(expected, HashSet::new());
+    assert_eq!(
+        count,
+        0x110000 // full numeric range...
+        - 0x800 // ...but without surrogates
+    );
+}
+
+#[test]
 fn impl_array_of_unit_type() {
     assert_eq!(c::<[(); 4]>(), vec![[(), (), (), ()]]);
 }
