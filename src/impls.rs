@@ -16,6 +16,7 @@
 //! * [`core::cell::UnsafeCell`], because it does not implement [`Clone`].
 //! * [`core::mem::ManuallyDrop`], because it would be a memory leak.
 //! * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
+//! * [`std::sync::Mutex`] and `RwLock`, which do not implement [`Clone`].
 //!
 //! [`Exhaust`]: crate::Exhaust
 
@@ -56,4 +57,3 @@ mod std_impls;
 //   std::collections::{HashMap, HashSet}
 //   std::fs::{OpenOptions, Permissions} (avoid since it's non-exhaustive?)
 //   std::io::{BufReader, BufWriter, Stdin, Stdout, Stderr, Sink}
-//   std::sync::{Mutex, Once, RwLock, TryLockError}
