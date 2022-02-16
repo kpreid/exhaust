@@ -27,6 +27,7 @@ mod core_future;
 mod core_marker;
 mod core_num;
 mod core_option;
+//  core::pin::Pin is handled separately for each pinnable smart pointer.
 mod core_primitive;
 pub use core_primitive::ExhaustArray;
 
@@ -45,9 +46,8 @@ mod std_impls;
 //   core::fmt::Alignment
 //   core::fmt::Error (do we want to impl for Error types in general?)
 //   core::mem::MaybeUninit
-//   core::num::*
-//   core::ops::*
-//   core::pin::Pin
+//   core::num::NonZero*
+//   core::ops::{Bound, ControlFlow, Range*}
 //   core::result::Result
 //   core::sync::atomic::*
 //   core::task::Poll
