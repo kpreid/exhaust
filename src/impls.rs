@@ -9,6 +9,7 @@
 // Impls organized by the corresponding standard library module.
 mod core_cell;
 mod core_cmp;
+mod core_convert;
 mod core_marker;
 mod core_num;
 mod core_option;
