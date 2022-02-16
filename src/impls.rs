@@ -10,6 +10,7 @@
 mod core_cell;
 mod core_cmp;
 mod core_convert;
+mod core_future;
 mod core_marker;
 mod core_num;
 mod core_option;
