@@ -16,8 +16,11 @@ macro_rules! impl_via_range {
 }
 
 macro_rules! impl_newtype_generic {
-    ($tvar:ident, $container:ty, $wrap_fn:expr) => {
-        impl<$tvar: $crate::Exhaust> $crate::Exhaust for $container {
+    ($tvar:ident : [ $( $bounds:tt )* ] , $container:ty, $wrap_fn:expr) => {
+        impl<$tvar: $crate::Exhaust> $crate::Exhaust for $container
+        where
+            $tvar: $( $bounds )*
+        {
             type Iter =
                 ::core::iter::Map<<$tvar as $crate::Exhaust>::Iter, fn($tvar) -> $container>;
             fn exhaust() -> Self::Iter {
@@ -72,7 +75,9 @@ impl Exhaust for f32 {
     }
 }
 
-impl_newtype_generic!(T, core::num::Wrapping<T>, core::num::Wrapping);
+// Modifier wrapper types.
+impl_newtype_generic!(T: [], core::cmp::Reverse<T>, core::cmp::Reverse);
+impl_newtype_generic!(T: [], core::num::Wrapping<T>, core::num::Wrapping);
 
 impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
     type Iter = ExhaustArray<T, N>;
@@ -153,18 +158,23 @@ impl<T: Exhaust> Exhaust for Option<T> {
     }
 }
 
+// Cell wrapper types
+impl_newtype_generic!(T: [Copy], core::cell::Cell<T>, core::cell::Cell::new);
+impl_newtype_generic!(T: [], core::cell::RefCell<T>, core::cell::RefCell::new);
+// Cannot impl for UnsafeCell because it is not Clone.
+
 #[cfg(feature = "alloc")]
 mod alloc_impls {
     use alloc::boxed::Box;
     use alloc::rc::Rc;
 
-    impl_newtype_generic!(T, Box<T>, Box::new);
-    impl_newtype_generic!(T, Rc<T>, Rc::new);
+    impl_newtype_generic!(T: [], Box<T>, Box::new);
+    impl_newtype_generic!(T: [], Rc<T>, Rc::new);
 }
 
 #[cfg(feature = "std")]
 mod std_impls {
     use std::sync::Arc;
 
-    impl_newtype_generic!(T, Arc<T>, Arc::new);
+    impl_newtype_generic!(T: [], Arc<T>, Arc::new);
 }
