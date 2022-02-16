@@ -20,8 +20,9 @@ extern crate std;
 
 pub use exhaust_macros::Exhaust;
 
-mod impls;
-pub use impls::*;
+pub(crate) mod patterns;
+
+pub mod impls;
 
 mod convenience;
 pub use convenience::*;
