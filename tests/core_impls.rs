@@ -1,3 +1,5 @@
+use core::num;
+
 use exhaust::Exhaust;
 
 fn c<T: Exhaust>() -> Vec<T> {
@@ -50,6 +52,28 @@ fn impl_char() {
         count,
         0x110000 // full numeric range...
         - 0x800 // ...but without surrogates
+    );
+}
+
+#[test]
+fn impl_nonzero_unsigned() {
+    // The non-u8 impls are macro-generated the same way.
+    assert_eq!(
+        c::<num::NonZeroU8>(),
+        (1..=255)
+            .map(|i| num::NonZeroU8::new(i).unwrap())
+            .collect::<Vec<num::NonZeroU8>>()
+    );
+}
+
+#[test]
+fn impl_nonzero_signed() {
+    // The non-u8 impls are macro-generated the same way.
+    assert_eq!(
+        c::<num::NonZeroI8>(),
+        (-128..=127)
+            .filter_map(num::NonZeroI8::new)
+            .collect::<Vec<num::NonZeroI8>>()
     );
 }
 

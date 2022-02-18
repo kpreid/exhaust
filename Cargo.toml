@@ -22,3 +22,4 @@ alloc = []
 
 [dependencies]
 exhaust-macros = { version = "0.1.0", path = "exhaust-macros" }
+paste = "1.0.5"
