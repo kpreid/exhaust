@@ -27,6 +27,11 @@ macro_rules! impl_via_range {
 }
 pub(crate) use impl_via_range;
 
+/// Implement [`Exhaust`] for a 'newtype' that has one generic field that must also implement
+/// [`Exhaust`].
+///
+/// As an easier to implement syntax, generic bounds must be written inside of square brackets:
+/// `impl_newtype_generic!(T: [Foo], Bar, Bar::new)`
 macro_rules! impl_newtype_generic {
     ($tvar:ident : [ $( $bounds:tt )* ] , $container:ty, $wrap_fn:expr) => {
         impl<$tvar: $crate::Exhaust> $crate::Exhaust for $container
