@@ -129,3 +129,11 @@ fn impl_array_of_3() {
 fn impl_option() {
     assert_eq!(c::<Option<bool>>(), vec![None, Some(false), Some(true)]);
 }
+
+#[test]
+fn impl_result() {
+    assert_eq!(
+        c::<Result<bool, bool>>(),
+        vec![Ok(false), Ok(true), Err(false), Err(true)]
+    );
+}

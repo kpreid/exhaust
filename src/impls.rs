@@ -32,6 +32,8 @@ mod core_option;
 //  core::pin::Pin is handled separately for each pinnable smart pointer.
 mod core_primitive;
 pub use core_primitive::ExhaustArray;
+mod core_result;
+pub use core_result::ExhaustResult;
 
 #[cfg(feature = "alloc")]
 mod alloc_impls;
@@ -49,7 +51,6 @@ mod std_impls;
 //   core::fmt::Error (do we want to impl for Error types in general?)
 //   core::mem::MaybeUninit
 //   core::ops::{Bound, ControlFlow, Range*}
-//   core::result::Result
 //   core::sync::atomic::*
 //   core::task::Poll
 //   alloc::borrow::Cow (with the caveat of no Borroweds)
