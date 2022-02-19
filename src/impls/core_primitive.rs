@@ -11,6 +11,10 @@ impl Exhaust for () {
     }
 }
 
+// Generates tuple implementations from 2 to 12 items.
+// 12 was chosen as the same size the standard library offers.
+exhaust_macros::impl_exhaust_for_tuples!(12);
+
 impl_via_array!(bool, [false, true]);
 
 impl_via_range!(char, '\x00', char::MAX);

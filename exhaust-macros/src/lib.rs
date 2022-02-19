@@ -4,14 +4,17 @@ use itertools::{izip, Itertools as _};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, parse_quote, DeriveInput};
 
 mod common;
 use common::ExhaustContext;
 
 mod fields;
 use fields::{exhaust_iter_fields, ExhaustFields};
+
+use crate::common::ConstructorSyntax;
 
 /// Derive macro generating an impl of the trait `exhaust::Exhaust`.
 ///
@@ -29,6 +32,17 @@ pub fn derive_exhaust(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Generate an impl of Exhaust for a built-in tuple type.
+/// This macro is only useful within the `exhaust` crate.
+#[proc_macro]
+#[doc(hidden)]
+pub fn impl_exhaust_for_tuples(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::LitInt);
+    tuple_impls_up_to(input.base10_parse().unwrap())
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
 fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     let DeriveInput {
         ident: item_type_name,
@@ -42,11 +56,10 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         vis,
         generics,
         iterator_type_name: Ident::new(&format!("Exhaust{}", item_type_name), Span::mixed_site()),
-        item_type_name,
+        item_type: ConstructorSyntax::Braced(item_type_name.to_token_stream()),
         exhaust_crate_path: syn::parse_quote! { ::exhaust },
     };
     let ExhaustContext {
-        item_type_name,
         iterator_type_name,
         exhaust_crate_path,
         ..
@@ -77,13 +90,117 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     })
 }
 
+fn tuple_impls_up_to(size: u64) -> Result<TokenStream2, syn::Error> {
+    (2..=size).map(tuple_impl).collect()
+}
+
+/// Generate an impl of Exhaust for a built-in tuple type.
+///
+/// This is almost but not quite identical to [`exhaust_iter_struct`], due to the syntax
+/// of tuples and due to it being used from the same crate (so that access is via
+/// crate::Exhaust instead of ::exhaust::Exhaust).
+fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
+    if size < 2 {
+        return Err(syn::Error::new(
+            Span::call_site(),
+            "tuple type of size less than 2 not supported",
+        ));
+    }
+
+    let value_type_vars: Vec<Ident> = (0..size)
+        .map(|i| Ident::new(&format!("T{}", i), Span::mixed_site()))
+        .collect();
+    let synthetic_fields: syn::Fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
+        paren_token: syn::token::Paren(Span::mixed_site()),
+        unnamed: value_type_vars
+            .iter()
+            .map(|type_var| syn::Field {
+                attrs: vec![],
+                vis: parse_quote! { pub },
+                ident: None,
+                colon_token: None,
+                ty: syn::Type::Verbatim(type_var.to_token_stream()),
+            })
+            .collect(),
+    });
+
+    // Synthesize a good-enough context to use the derive tools.
+    let ctx: ExhaustContext = ExhaustContext {
+        vis: parse_quote! { pub },
+        generics: syn::Generics {
+            lt_token: None,
+            params: value_type_vars
+                .iter()
+                .map(|var| {
+                    syn::GenericParam::Type(syn::TypeParam {
+                        attrs: vec![],
+                        ident: var.clone(),
+                        colon_token: None,
+                        bounds: Punctuated::default(),
+                        eq_token: None,
+                        default: None,
+                    })
+                })
+                .collect(),
+            gt_token: None,
+            where_clause: None,
+        },
+        item_type: ConstructorSyntax::Tuple,
+        iterator_type_name: Ident::new(&format!("ExhaustTuple{}", size), Span::mixed_site()),
+        exhaust_crate_path: parse_quote! { crate },
+    };
+
+    let iterator_type_name = &ctx.iterator_type_name;
+
+    // Generate the field-exhausting iteration logic
+    let ExhaustFields {
+        field_decls,
+        initializers,
+        field_pats,
+        advance,
+    } = exhaust_iter_fields(&ctx, &synthetic_fields, &ConstructorSyntax::Tuple);
+
+    let iterator_impls = ctx.impl_iterator_traits(
+        quote! {
+            match self {
+                Self { #field_pats } => {
+                    #advance
+                }
+            }
+        },
+        quote! { Self { #initializers } },
+    );
+
+    let iterator_doc = ctx.iterator_doc();
+
+    Ok(quote! {
+        impl<#( #value_type_vars , )*> crate::Exhaust for ( #( #value_type_vars , )* )
+        where #( #value_type_vars : crate::Exhaust, )*
+        {
+            type Iter = #iterator_type_name <#( #value_type_vars , )*>;
+            fn exhaust() -> Self::Iter {
+                ::core::default::Default::default()
+            }
+        }
+
+        #[doc = #iterator_doc]
+        #[derive(Clone)]
+        pub struct #iterator_type_name <#( #value_type_vars , )*>
+        where #( #value_type_vars : crate::Exhaust, )*
+        {
+            #field_decls
+        }
+
+        #iterator_impls
+    })
+}
+
 fn exhaust_iter_struct(
     s: syn::DataStruct,
     ctx: &ExhaustContext,
 ) -> Result<TokenStream2, syn::Error> {
     let doc = ctx.iterator_doc();
     let vis = &ctx.vis;
-    let item_type_name = &ctx.item_type_name;
     let iterator_type_name = &ctx.iterator_type_name;
 
     let ExhaustFields {
@@ -92,6 +209,7 @@ fn exhaust_iter_struct(
         field_pats,
         advance,
     } = if s.fields.is_empty() {
+        let empty_ctor = ctx.item_type.value_expr([].iter(), [].iter());
         ExhaustFields {
             field_decls: quote! { done: bool, },
             initializers: quote! { done: false, },
@@ -101,12 +219,12 @@ fn exhaust_iter_struct(
                     ::core::option::Option::None
                 } else {
                     *done = true;
-                    ::core::option::Option::Some(#item_type_name {})
+                    ::core::option::Option::Some(#empty_ctor)
                 }
             },
         }
     } else {
-        exhaust_iter_fields(ctx, &s.fields, item_type_name.to_token_stream())
+        exhaust_iter_fields(ctx, &s.fields, &ctx.item_type)
     };
 
     let (_, ty_generics, augmented_where_predicates) =
@@ -141,12 +259,11 @@ fn exhaust_iter_struct(
 fn exhaust_iter_enum(e: syn::DataEnum, ctx: &ExhaustContext) -> Result<TokenStream2, syn::Error> {
     let doc = ctx.iterator_doc();
     let vis = &ctx.vis;
-    let item_type_name = &ctx.item_type_name;
     let iterator_type_name = &ctx.iterator_type_name;
 
     // TODO: hide the declaration of this
     let state_enum_type = Ident::new(
-        &format!("__ExhaustEnum_{}", item_type_name),
+        &format!("__ExhaustEnum_{}", ctx.item_type.name_for_incorporation()?),
         Span::mixed_site(),
     );
 
@@ -201,7 +318,7 @@ fn exhaust_iter_enum(e: syn::DataEnum, ctx: &ExhaustContext) -> Result<TokenStre
                 fields::exhaust_iter_fields(
                     ctx,
                     &target_variant.fields,
-                    quote! { #item_type_name :: #target_variant_ident },
+                    &ctx.item_type.with_variant(target_variant_ident),
                 )
             };
 
@@ -242,9 +359,13 @@ fn exhaust_iter_enum(e: syn::DataEnum, ctx: &ExhaustContext) -> Result<TokenStre
         |(target_enum_variant, state_ident, pats, next_state_initializer, field_advancer)| {
             let target_variant_ident = &target_enum_variant.ident;
             let advancer = if target_enum_variant.fields.is_empty() {
+                let empty_ctor = ctx
+                    .item_type
+                    .with_variant(target_variant_ident)
+                    .value_expr([].iter(), [].iter());
                 quote! {
                     self.0 = #next_state_initializer;
-                    ::core::option::Option::Some(#item_type_name::#target_variant_ident {})
+                    ::core::option::Option::Some(#empty_ctor)
                 }
             } else {
                 quote! {

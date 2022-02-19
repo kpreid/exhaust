@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
@@ -15,7 +15,7 @@ pub(crate) struct ExhaustContext {
     pub generics: syn::Generics,
 
     /// Name of the type being iterated.
-    pub item_type_name: Ident,
+    pub item_type: ConstructorSyntax,
 
     /// Name of the generated iterator type.
     pub iterator_type_name: Ident,
@@ -64,7 +64,26 @@ impl ExhaustContext {
     }
 
     pub fn iterator_doc(&self) -> String {
-        format!("Iterator over all values of [`{}`].", self.item_type_name)
+        match &self.item_type {
+            // TODO: No tests to validate this doc link
+            ConstructorSyntax::Braced(name) => format!(
+                "Iterator over all values of [`{}`].\n\
+                \n\
+                To obtain an instance of this iterator, call [`Exhaust::exhaust()`].\n\
+                \n\
+                [`Exhaust::exhaust()`]: {}::Exhaust",
+                name,
+                self.exhaust_crate_path.to_token_stream()
+            ),
+            ConstructorSyntax::Tuple => {
+                format!(
+                    "Iterator over all tuples of {} elements.\n\
+                    \n\
+                    To obtain an instance of this iterator, call [`Exhaust::exhaust()`].",
+                    self.generics.params.len()
+                )
+            }
+        }
     }
 
     /// Generate the common parts of the Iterator implementation.
@@ -73,17 +92,17 @@ impl ExhaustContext {
         iterator_next_body: TokenStream2,
         iterator_default_body: TokenStream2,
     ) -> TokenStream2 {
-        let item_type_name = &self.item_type_name;
         let iterator_type_name = &self.iterator_type_name;
         let (impl_generics, ty_generics, augmented_where_predicates) =
             self.generics_with_bounds(syn::parse_quote! {});
         let (_, _, debug_where_predicates) =
             self.generics_with_bounds(syn::parse_quote! { ::core::fmt::Debug });
+        let item_type_inst = self.item_type.parameterized(&self.generics);
 
         quote! {
             impl #impl_generics ::core::iter::Iterator for #iterator_type_name #ty_generics
             where #augmented_where_predicates {
-                type Item = #item_type_name #ty_generics;
+                type Item = #item_type_inst;
 
                 fn next(&mut self) -> ::core::option::Option<Self::Item> {
                     #iterator_next_body
@@ -107,6 +126,71 @@ impl ExhaustContext {
                         .finish_non_exhaustive()
                 }
             }
+        }
+    }
+}
+
+/// How to name a type for construction.
+pub(crate) enum ConstructorSyntax {
+    /// A struct or variant name to used with `MyStruct { field: value }` syntax.
+    Braced(TokenStream2),
+    /// The type is a primitive tuple.
+    Tuple,
+}
+
+impl ConstructorSyntax {
+    /// Name to use for concatenation to construct new type names.
+    pub fn name_for_incorporation(&self) -> Result<String, syn::Error> {
+        match self {
+            ConstructorSyntax::Braced(name) => Ok(name.to_string()),
+            ConstructorSyntax::Tuple => Err(syn::Error::new(
+                Span::call_site(),
+                "exhaust-macros internal error: no name for tuple types",
+            )),
+        }
+    }
+
+    /// Type applied to given type parameters.
+    pub(crate) fn parameterized(&self, generics: &syn::Generics) -> TokenStream2 {
+        match self {
+            ConstructorSyntax::Braced(name) => {
+                let (_, ty_generics, _) = generics.split_for_impl();
+                quote! { #name #ty_generics }
+            }
+            ConstructorSyntax::Tuple => {
+                let par = generics.type_params();
+                quote! { ( #( #par , )* ) }
+            }
+        }
+    }
+
+    /// Constructor applied to fields.
+    /// The fields MUST be in original declardd order, to handle the tuple case.
+    pub(crate) fn value_expr<'a>(
+        &self,
+        names: impl Iterator<Item = &'a TokenStream2>,
+        values: impl Iterator<Item = &'a TokenStream2>,
+    ) -> TokenStream2 {
+        match self {
+            ConstructorSyntax::Braced(name) => {
+                quote! { #name { #( #names : #values , )* } }
+            }
+            ConstructorSyntax::Tuple => {
+                quote! { ( #( #values , )* ) }
+            }
+        }
+    }
+
+    /// Given an enum type name, produce a variant constructor.
+    pub(crate) fn with_variant(&self, target_variant_ident: &Ident) -> ConstructorSyntax {
+        match self {
+            ConstructorSyntax::Braced(name) => {
+                let mut name = name.clone();
+                name.extend(quote! { :: });
+                name.extend(target_variant_ident.to_token_stream());
+                ConstructorSyntax::Braced(name)
+            }
+            ConstructorSyntax::Tuple => panic!("a tuple is not an enum"),
         }
     }
 }

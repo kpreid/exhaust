@@ -12,6 +12,23 @@ fn impl_unit() {
 }
 
 #[test]
+fn impl_nontrivial_tuple() {
+    assert_eq!(
+        c::<(bool, bool, bool)>(),
+        vec![
+            (false, false, false),
+            (false, false, true),
+            (false, true, false),
+            (false, true, true),
+            (true, false, false),
+            (true, false, true),
+            (true, true, false),
+            (true, true, true),
+        ]
+    );
+}
+
+#[test]
 fn impl_phantom_data() {
     use core::marker::PhantomData;
     assert_eq!(c::<PhantomData<bool>>(), vec![PhantomData]);

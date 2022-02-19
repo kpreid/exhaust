@@ -2,7 +2,7 @@ use itertools::Itertools as _;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
 
-use crate::common::ExhaustContext;
+use crate::common::{ConstructorSyntax, ExhaustContext};
 
 /// Pieces of the implementation of a product iterator, over fields of a struct
 /// or enum variant.
@@ -26,7 +26,7 @@ pub(crate) struct ExhaustFields {
 pub(crate) fn exhaust_iter_fields(
     ctx: &ExhaustContext,
     struct_fields: &syn::Fields,
-    constructor: TokenStream2,
+    constructor: &ConstructorSyntax,
 ) -> ExhaustFields {
     assert!(
         !struct_fields.is_empty(),
@@ -108,12 +108,14 @@ pub(crate) fn exhaust_iter_fields(
             }
         });
 
+    let item_expr = constructor.value_expr(target_field_names.iter(), field_value_getters.iter());
+
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
     let advance = quote! {
         if #( #iter_field_names.peek().is_some() && )* true {
             // Gather that next item, advancing the last field iterator only.
-            let item = #constructor { #( #target_field_names : #field_value_getters , )* };
+            let item = #item_expr;
 
             // Perform carries to other field iterators.
             // && short circuiting gives us the behavior we want conveniently, whereas

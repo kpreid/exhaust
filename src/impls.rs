@@ -31,9 +31,9 @@ pub use core_num::*;
 mod core_option;
 //  core::pin::Pin is handled separately for each pinnable smart pointer.
 mod core_primitive;
-pub use core_primitive::ExhaustArray;
+pub use core_primitive::*;
 mod core_result;
-pub use core_result::ExhaustResult;
+pub use core_result::*;
 
 #[cfg(feature = "alloc")]
 mod alloc_impls;
