@@ -1,7 +1,7 @@
 use core::iter;
 
 use crate::iteration::{carry, peekable_exhaust};
-use crate::patterns::{impl_via_array, impl_via_range};
+use crate::patterns::{impl_newtype_generic, impl_via_array, impl_via_range};
 use crate::Exhaust;
 
 impl Exhaust for () {
@@ -10,6 +10,9 @@ impl Exhaust for () {
         iter::once(())
     }
 }
+
+// Implement single-element tuples in the same way we implement other generic containers.
+impl_newtype_generic!(T: [], (T,), |x| (x,));
 
 // Generates tuple implementations from 2 to 12 items.
 // 12 was chosen as the same size the standard library offers.

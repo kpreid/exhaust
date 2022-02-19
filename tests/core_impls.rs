@@ -12,6 +12,11 @@ fn impl_unit() {
 }
 
 #[test]
+fn impl_single_element_tuple() {
+    assert_eq!(c::<(bool,)>(), vec![(false,), (true,)]);
+}
+
+#[test]
 fn impl_nontrivial_tuple() {
     assert_eq!(
         c::<(bool, bool, bool)>(),

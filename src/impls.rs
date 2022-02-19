@@ -42,7 +42,6 @@ mod alloc_impls;
 mod std_impls;
 
 // TODO: The following implementations might be missing:
-//   Primitive tuples (except for unit)
 //   core::iter::* (combinatorial explosion fun!)
 //     Iterators for std library types *not* in core::iter
 //   core::hash::*
