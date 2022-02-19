@@ -2,6 +2,8 @@ use itertools::Itertools as _;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
 
+use crate::common::ExhaustContext;
+
 /// Pieces of the implementation of a product iterator, over fields of a struct
 /// or enum variant.
 pub(crate) struct ExhaustFields {
@@ -22,6 +24,7 @@ pub(crate) struct ExhaustFields {
 /// case, because that can be implemented more efficiently given knowledge of the case
 /// where the type is an enum.
 pub(crate) fn exhaust_iter_fields(
+    ctx: &ExhaustContext,
     struct_fields: &syn::Fields,
     constructor: TokenStream2,
 ) -> ExhaustFields {
@@ -29,6 +32,9 @@ pub(crate) fn exhaust_iter_fields(
         !struct_fields.is_empty(),
         "exhaust_iter_fields requires at least 1 field"
     );
+
+    let crate_path = &ctx.exhaust_crate_path;
+
     let (iterator_fields, iterator_fields_init, iter_field_names, target_field_names, field_types): (
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -55,10 +61,10 @@ pub(crate) fn exhaust_iter_fields(
 
             (
                 quote! {
-                    #iter_field_name : ::exhaust::iteration::Pei<#field_type>
+                    #iter_field_name : #crate_path::iteration::Pei<#field_type>
                 },
                 quote! {
-                    #iter_field_name : ::exhaust::iteration::peekable_exhaust::<#field_type>()
+                    #iter_field_name : #crate_path::iteration::peekable_exhaust::<#field_type>()
                 },
                 iter_field_name,
                 target_field_name,
@@ -94,10 +100,10 @@ pub(crate) fn exhaust_iter_fields(
         .rev()
         .map(|(high, (low, low_field_type))| {
             quote! {
-                ::exhaust::iteration::carry(
+                #crate_path::iteration::carry(
                     #high,
                     #low,
-                    ::exhaust::iteration::peekable_exhaust::<#low_field_type>
+                    #crate_path::iteration::peekable_exhaust::<#low_field_type>
                 )
             }
         });

@@ -1,5 +1,6 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
+use syn::parse_quote;
 use syn::punctuated::Punctuated;
 
 /// Data and helpers for generating an exhaustive iterator, that are common
@@ -8,25 +9,41 @@ pub(crate) struct ExhaustContext {
     /// Maximum visibility for the generated types, inherited from the declaration
     /// (e.g. `pub Foo` should have a `pub ExhaustFoo` iterator).
     pub vis: syn::Visibility,
+
     /// Generics present on the declaration, which need to be copied to the
     /// iterator.
     pub generics: syn::Generics,
+
     /// Name of the type being iterated.
     pub item_type_name: Ident,
+
     /// Name of the generated iterator type.
     pub iterator_type_name: Ident,
+
+    /// Path by which the `exhaust` crate should be referred to.
+    pub exhaust_crate_path: syn::Path,
 }
 
 impl ExhaustContext {
-    /// As [`syn::Generics::split_for_impl`], but adding the given bounds.
+    /// Generate the TraitBound `exhaust::Exhaust`.
+    pub fn exhaust_trait_bound(&self) -> syn::TraitBound {
+        let mut path = self.exhaust_crate_path.clone();
+        path.segments.push(parse_quote! { Exhaust });
+        // reinterpret as TraitBound
+        parse_quote! { #path }
+    }
+
+    /// As [`syn::Generics::split_for_impl`], but adding the given bounds,
+    /// as well as the `::exhaust::Exhaust` bound.
     pub fn generics_with_bounds(
         &self,
-        additional_bounds: Punctuated<syn::TypeParamBound, syn::Token![+]>,
+        mut bounds: Punctuated<syn::TypeParamBound, syn::Token![+]>,
     ) -> (
         syn::ImplGenerics<'_>,
         syn::TypeGenerics<'_>,
         Punctuated<syn::WherePredicate, syn::token::Comma>,
     ) {
+        bounds.push(syn::TypeParamBound::Trait(self.exhaust_trait_bound()));
         let generics = &self.generics;
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let mut augmented_where_predicates = match where_clause {
@@ -39,7 +56,7 @@ impl ExhaustContext {
                     lifetimes: None,
                     bounded_ty: syn::Type::Verbatim(g.ident.to_token_stream()),
                     colon_token: <_>::default(),
-                    bounds: additional_bounds.clone(),
+                    bounds: bounds.clone(),
                 }));
             }
         }
@@ -59,9 +76,9 @@ impl ExhaustContext {
         let item_type_name = &self.item_type_name;
         let iterator_type_name = &self.iterator_type_name;
         let (impl_generics, ty_generics, augmented_where_predicates) =
-            self.generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust });
-        let (_, _, debug_where_predicates) = self
-            .generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust + ::core::fmt::Debug });
+            self.generics_with_bounds(syn::parse_quote! {});
+        let (_, _, debug_where_predicates) =
+            self.generics_with_bounds(syn::parse_quote! { ::core::fmt::Debug });
 
         quote! {
             impl #impl_generics ::core::iter::Iterator for #iterator_type_name #ty_generics

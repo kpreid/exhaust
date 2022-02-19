@@ -43,10 +43,12 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         generics,
         iterator_type_name: Ident::new(&format!("Exhaust{}", item_type_name), Span::mixed_site()),
         item_type_name,
+        exhaust_crate_path: syn::parse_quote! { ::exhaust },
     };
     let ExhaustContext {
         item_type_name,
         iterator_type_name,
+        exhaust_crate_path,
         ..
     } = &ctx;
 
@@ -60,10 +62,10 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     }?;
 
     let (impl_generics, ty_generics, augmented_where_predicates) =
-        ctx.generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust });
+        ctx.generics_with_bounds(syn::parse_quote! {});
 
     Ok(quote! {
-        impl #impl_generics ::exhaust::Exhaust for #item_type_name #ty_generics
+        impl #impl_generics #exhaust_crate_path::Exhaust for #item_type_name #ty_generics
         where #augmented_where_predicates {
             type Iter = #iterator_type_name #ty_generics;
             fn exhaust() -> Self::Iter {
@@ -104,11 +106,11 @@ fn exhaust_iter_struct(
             },
         }
     } else {
-        exhaust_iter_fields(&s.fields, item_type_name.to_token_stream())
+        exhaust_iter_fields(ctx, &s.fields, item_type_name.to_token_stream())
     };
 
     let (_, ty_generics, augmented_where_predicates) =
-        ctx.generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust });
+        ctx.generics_with_bounds(syn::parse_quote! {});
 
     // Note: The iterator must have trait bounds because its fields, being of type
     // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
@@ -197,6 +199,7 @@ fn exhaust_iter_enum(e: syn::DataEnum, ctx: &ExhaustContext) -> Result<TokenStre
             } else {
                 let target_variant_ident = &target_variant.ident;
                 fields::exhaust_iter_fields(
+                    ctx,
                     &target_variant.fields,
                     quote! { #item_type_name :: #target_variant_ident },
                 )
@@ -265,7 +268,7 @@ fn exhaust_iter_enum(e: syn::DataEnum, ctx: &ExhaustContext) -> Result<TokenStre
     );
 
     let (_, ty_generics, augmented_where_predicates) =
-        ctx.generics_with_bounds(syn::parse_quote! { ::exhaust::Exhaust });
+        ctx.generics_with_bounds(syn::parse_quote! {});
 
     let impls = ctx.impl_iterator_traits(
         quote! {
