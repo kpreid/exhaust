@@ -41,3 +41,22 @@ fn impl_hashset() {
         ]
     );
 }
+
+#[test]
+fn impl_btreemap() {
+    use std::collections::BTreeMap;
+    assert_eq!(
+        c::<BTreeMap<bool, bool>>(),
+        vec![
+            BTreeMap::from_iter([]),
+            BTreeMap::from_iter([(false, false)]),
+            BTreeMap::from_iter([(false, true)]),
+            BTreeMap::from_iter([(true, false)]),
+            BTreeMap::from_iter([(true, true)]),
+            BTreeMap::from_iter([(false, false), (true, false)]),
+            BTreeMap::from_iter([(false, false), (true, true)]),
+            BTreeMap::from_iter([(false, true), (true, false)]),
+            BTreeMap::from_iter([(false, true), (true, true)]),
+        ]
+    );
+}
