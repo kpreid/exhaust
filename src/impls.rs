@@ -15,7 +15,10 @@
 //! * [`u64`], [`i64`], and [`f64`], because they are too large to feasibly exhaust.
 //! * [`core::cell::UnsafeCell`], because it does not implement [`Clone`].
 //! * [`core::mem::ManuallyDrop`], because it would be a memory leak.
+//! * [`alloc::vec::Vec`] and other collections that permit duplicate items, since their
+//!   possible values are bounded only by available memory.
 //! * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
+//! * [`std::io::Stdout`] and other types whose sole use is in performing IO.
 //! * [`std::sync::Mutex`] and `RwLock`, which do not implement [`Clone`].
 //!
 //! [`Exhaust`]: crate::Exhaust
@@ -53,7 +56,6 @@ mod std_impls;
 //   core::sync::atomic::*
 //   core::task::Poll
 //   alloc::borrow::Cow (with the caveat of no Borroweds)
-//   alloc::collections::{BinaryHeap, BTreeMap, BTreeSet}
-//   std::collections::{HashMap, HashSet}
-//   std::fs::{OpenOptions, Permissions} (avoid since it's non-exhaustive?)
-//   std::io::{BufReader, BufWriter, Stdin, Stdout, Stderr, Sink}
+//   alloc::collections::BinaryHeap
+//   std::collections::HashMap (generalize the BTreeMap implementation)
+//   std::io::{BufReader, BufWriter, Sink}
