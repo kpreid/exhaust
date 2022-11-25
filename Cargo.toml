@@ -24,6 +24,10 @@ alloc = ["itertools"]
 name = "alloc_impls"
 required-features = ["alloc"]
 
+[[test]]
+name = "std_impls"
+required-features = ["std"]
+
 [dependencies]
 exhaust-macros = { version = "0.1.1", path = "exhaust-macros" }
 paste = "1.0.5"
