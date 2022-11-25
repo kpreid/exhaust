@@ -24,6 +24,7 @@
         * Note: Does not produce lexicographic ordering.
     * `Pin<Box<T>>`
     * `std::collections::HashSet`
+    * `std::io::Cursor`
 * Documentation example of a custom `impl Exhaust`.
 
 ### Changed

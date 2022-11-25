@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::sync;
 use std::vec::Vec;
 
+use crate::iteration::FlatZipMap;
 use crate::patterns::impl_newtype_generic;
 use crate::Exhaust;
 
@@ -62,6 +63,23 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ExhaustPowerset").field(&self.iter).finish()
+    }
+}
+
+impl<T: Exhaust + AsRef<[u8]>> Exhaust for std::io::Cursor<T> {
+    type Iter = FlatZipMap<<T as Exhaust>::Iter, std::ops::RangeInclusive<u64>, std::io::Cursor<T>>;
+    /// Returns each combination of a buffer state and a cursor position, except for those
+    /// where the position is beyond the end of the buffer.
+    fn exhaust() -> Self::Iter {
+        FlatZipMap::new(
+            T::exhaust(),
+            |buf| 0..=(buf.as_ref().len() as u64),
+            |buf, pos| {
+                let mut cursor = std::io::Cursor::new(buf);
+                cursor.set_position(pos);
+                cursor
+            },
+        )
     }
 }
 

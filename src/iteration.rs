@@ -3,6 +3,7 @@
 //! These functions were found to be repeatedly useful within the built-in implementations,
 //! and are provided publicly in the expectation that they will have more uses.
 
+use core::fmt;
 use core::iter::Peekable;
 
 use crate::Exhaust;
@@ -36,5 +37,80 @@ where
         true
     } else {
         false
+    }
+}
+
+/// Given an iterator and a function of its elements that yields an iterator,
+/// produce tuples of the two iterators' results.
+#[derive(Clone)]
+#[doc(hidden)] // Public because exposed as an iterator type. Not yet recommended for use.
+pub struct FlatZipMap<I: Iterator, J: Iterator, O> {
+    outer_iterator: I,
+    inner: Option<(I::Item, J)>,
+    iter_fn: fn(&I::Item) -> J,
+    output_fn: fn(I::Item, J::Item) -> O,
+}
+
+impl<I, J, O> fmt::Debug for FlatZipMap<I, J, O>
+where
+    I: Iterator + fmt::Debug,
+    I::Item: fmt::Debug,
+    J: Iterator + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlatZipMap")
+            .field("outer_iterator", &self.outer_iterator)
+            .field("outer_item", &self.inner.as_ref().map(|i| &i.0))
+            .field("inner_iterator", &self.inner.as_ref().map(|i| &i.1))
+            .finish()
+    }
+}
+
+impl<I, J, O> FlatZipMap<I, J, O>
+where
+    I: Iterator,
+    J: Iterator,
+{
+    pub(crate) fn new(
+        outer_iterator: I,
+        iter_fn: fn(&I::Item) -> J,
+        output_fn: fn(I::Item, J::Item) -> O,
+    ) -> Self {
+        Self {
+            outer_iterator,
+            inner: None,
+            iter_fn,
+            output_fn,
+        }
+    }
+}
+
+impl<I, J, O> Iterator for FlatZipMap<I, J, O>
+where
+    I: Iterator,
+    I::Item: Clone,
+    J: Iterator,
+{
+    type Item = O;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.inner {
+                Some((ref i_item, ref mut j_iter)) => {
+                    if let Some(j_item) = j_iter.next() {
+                        return Some((self.output_fn)(i_item.clone(), j_item));
+                    }
+                    // If no items, try the outer iter.
+                    self.inner = None;
+                }
+                None => match self.outer_iterator.next() {
+                    Some(i_item) => {
+                        let j_iter = (self.iter_fn)(&i_item);
+                        self.inner = Some((i_item, j_iter));
+                    }
+                    None => return None,
+                },
+            }
+        }
     }
 }
