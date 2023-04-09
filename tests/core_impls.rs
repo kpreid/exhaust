@@ -153,6 +153,15 @@ fn impl_option() {
 }
 
 #[test]
+fn impl_poll() {
+    use core::task::Poll;
+    assert_eq!(
+        c::<Poll<bool>>(),
+        vec![Poll::Pending, Poll::Ready(false), Poll::Ready(true)]
+    );
+}
+
+#[test]
 fn impl_result() {
     assert_eq!(
         c::<Result<bool, bool>>(),
