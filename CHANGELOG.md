@@ -11,6 +11,7 @@
     * `core::cmp::Ordering`
     * `core::future::Pending`
     * `core::future::Ready`
+    * `core::hash::BuildHasherDefault`
     * `core::iter::Reverse`
     * `core::marker::PhantomPinned`
     * `core::num::FpCategory`
