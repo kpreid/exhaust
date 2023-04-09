@@ -15,6 +15,9 @@
 //! * [`u64`], [`i64`], and [`f64`], because they are too large to feasibly exhaust.
 //! * [`core::cell::UnsafeCell`], because it does not implement [`Clone`].
 //! * [`core::mem::ManuallyDrop`], because it would be a memory leak.
+//! * [`core::mem::MaybeUninit`], because it is not useful to obtain a `MaybeUninit<T>`
+//!   value without knowing whether it is initialized, and if they are to be all
+//!   initialized, then `T::exhaust()` is just as good.
 //! * [`alloc::vec::Vec`] and other collections that permit duplicate items, since their
 //!   possible values are bounded only by available memory.
 //! * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
@@ -52,7 +55,6 @@ mod std_impls;
 //   core::lazy::* (not yet stabilized)
 //   core::fmt::Alignment
 //   core::fmt::Error (do we want to impl for Error types in general?)
-//   core::mem::MaybeUninit
 //   core::ops::{Bound, ControlFlow, Range*}
 //   core::sync::atomic::*
 //   alloc::collections::BinaryHeap
