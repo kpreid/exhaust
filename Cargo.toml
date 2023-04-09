@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "exhaust"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 # TODO: figure out MSRV
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
@@ -21,7 +21,7 @@ std = ["alloc"]
 alloc = ["itertools"]
 
 [dependencies]
-exhaust-macros = { version = "0.1.0", path = "exhaust-macros" }
+exhaust-macros = { version = "0.1.1", path = "exhaust-macros" }
 paste = "1.0.5"
 # itertools is used for its powerset iterator, which is only available with alloc
 itertools = { version = "0.10.3", optional = true, default-features = false, features = ["use_alloc"] }
