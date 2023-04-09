@@ -1,0 +1,66 @@
+name: Build & Test
+
+permissions: {}
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - ci
+
+env:
+  CARGO_TERM_COLOR: always
+  # Disable incremental compilation because we aren't caching incremental compilation
+  # artifacts, so they won't be useful for anything (other than maybe the exhaustive
+  # builds with different features).
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        toolchain: [stable, beta, nightly]
+
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.toolchain != 'stable' }}
+
+    steps:
+    - uses: actions/checkout@v3.1.0
+
+    - name: Install Rust toolchain
+      # Install exactly what we need: compiler, Cargo, clippy, rustfmt
+      run: |
+          rustup toolchain install "${{ matrix.toolchain }}" --profile=minimal --component=clippy --component=rustfmt
+          rustup override set "${{ matrix.toolchain }}"
+
+    # Load cache before doing any Rust builds
+    - uses: Swatinem/rust-cache@v2.0.2
+
+    - name: Lint
+      run: cargo clippy --timings
+    
+    - name: Compile (no features)
+      # compile is broken out so we have visibility into compile vs. run times
+      run: cargo test --no-default-features --timings --no-run
+
+    - name: Run tests (no features)
+      run: cargo test --no-default-features
+
+    - name: Compile (all features)
+      # compile is broken out so we have visibility into compile vs. run times
+      run: cargo test --all-features --timings --no-run
+
+    - name: Run tests (all features)
+      run: cargo test --all-features
+
+    - name: Update
+      run: cargo update
+
+    - name: Compile with updates
+      run: cargo test --timings --no-run
+
+    - name: Test with updates
+      run: cargo test --timings
+
