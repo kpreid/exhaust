@@ -28,6 +28,7 @@ mod core_cell;
 mod core_cmp;
 mod core_convert;
 mod core_future;
+mod core_hash;
 mod core_marker;
 mod core_num;
 pub use core_num::*;
@@ -48,7 +49,6 @@ mod std_impls;
 // TODO: The following implementations might be missing:
 //   core::iter::* (combinatorial explosion fun!)
 //     Iterators for std library types *not* in core::iter
-//   core::hash::*
 //   core::lazy::* (not yet stabilized)
 //   core::fmt::Alignment
 //   core::fmt::Error (do we want to impl for Error types in general?)
