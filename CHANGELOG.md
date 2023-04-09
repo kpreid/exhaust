@@ -18,6 +18,7 @@
     * `core::num::NonZero*`
     * `core::result::Result`
     * `core::task::Poll`
+    * `alloc::borrow::Cow`
     * `alloc::collections::BTreeMap`
     * `alloc::collections::BTreeSet`
         * Note: Does not produce lexicographic ordering.
