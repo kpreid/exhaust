@@ -23,6 +23,9 @@ pub use exhaust_macros::Exhaust;
 pub(crate) mod patterns;
 
 pub mod impls;
+/// Reexport for compatibility with v0.1.0;
+/// new code should use [`impls::ExhaustArray`](ExhaustArray).
+pub use impls::ExhaustArray;
 
 mod convenience;
 pub use convenience::*;
