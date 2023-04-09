@@ -37,6 +37,7 @@ mod core_primitive;
 pub use core_primitive::*;
 mod core_result;
 pub use core_result::*;
+mod core_task;
 
 #[cfg(feature = "alloc")]
 mod alloc_impls;
@@ -54,7 +55,6 @@ mod std_impls;
 //   core::mem::MaybeUninit
 //   core::ops::{Bound, ControlFlow, Range*}
 //   core::sync::atomic::*
-//   core::task::Poll
 //   alloc::borrow::Cow (with the caveat of no Borroweds)
 //   alloc::collections::BinaryHeap
 //   std::collections::HashMap (generalize the BTreeMap implementation)

@@ -16,6 +16,7 @@
     * `core::num::FpCategory`
     * `core::num::NonZero*`
     * `core::result::Result`
+    * `core::task::Poll`
     * `alloc::collections::BTreeMap`
     * `alloc::collections::BTreeSet`
         * Note: Does not produce lexicographic ordering.
