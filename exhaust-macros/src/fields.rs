@@ -35,6 +35,7 @@ pub(crate) fn exhaust_iter_fields(
 
     let crate_path = &ctx.exhaust_crate_path;
 
+    #[allow(clippy::type_complexity)]
     let (iterator_fields, iterator_fields_init, iter_field_names, target_field_names, field_types): (
         Vec<TokenStream2>,
         Vec<TokenStream2>,
