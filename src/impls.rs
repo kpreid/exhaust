@@ -55,7 +55,6 @@ mod std_impls;
 //   core::mem::MaybeUninit
 //   core::ops::{Bound, ControlFlow, Range*}
 //   core::sync::atomic::*
-//   alloc::borrow::Cow (with the caveat of no Borroweds)
 //   alloc::collections::BinaryHeap
 //   std::collections::HashMap (generalize the BTreeMap implementation)
 //   std::io::{BufReader, BufWriter, Sink}
