@@ -117,6 +117,7 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
             .map(|type_var| syn::Field {
                 attrs: vec![],
                 vis: parse_quote! { pub },
+                mutability: syn::FieldMutability::None,
                 ident: None,
                 colon_token: None,
                 ty: syn::Type::Verbatim(type_var.to_token_stream()),
