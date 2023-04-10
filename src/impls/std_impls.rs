@@ -83,12 +83,37 @@ impl<T: Exhaust + AsRef<[u8]>> Exhaust for std::io::Cursor<T> {
     }
 }
 
+// TODO: implement this after we no longer have a mandatory `Clone` bound for items
+// impl<T: io::Read + Exhaust> Exhaust for io::BufReader<T> {
+//     type Iter = iter::Map<<T as Exhaust>::Iter, fn(T) -> io::BufReader<T>>;
+//
+//     fn exhaust() -> Self::Iter {
+//         T::exhaust().map(io::BufReader::new)
+//     }
+// }
+//
+// impl<T: io::Write + Exhaust> Exhaust for io::BufWriter<T> {
+//     type Iter = iter::Map<<T as Exhaust>::Iter, fn(T) -> io::BufWriter<T>>;
+//
+//     fn exhaust() -> Self::Iter {
+//         T::exhaust().map(io::BufWriter::new)
+//     }
+// }
+
 impl Exhaust for std::io::Empty {
     type Iter = iter::Once<std::io::Empty>;
     fn exhaust() -> Self::Iter {
         iter::once(std::io::empty())
     }
 }
+
+// TODO: implement this after we no longer have a mandatory `Clone` bound for items
+// impl Exhaust for std::io::Repeat {
+//     type Iter = iter::Map<<u8 as Exhaust>::Iter, fn(u8) -> std::io::Repeat>;
+//     fn exhaust() -> Self::Iter {
+//         todo!()
+//     }
+// }
 
 impl Exhaust for std::io::Sink {
     type Iter = iter::Once<std::io::Sink>;
