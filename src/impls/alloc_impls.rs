@@ -1,6 +1,7 @@
 use core::pin::Pin;
 use core::{fmt, iter};
 
+use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::rc::Rc;
@@ -17,15 +18,15 @@ impl_newtype_generic!(T: [], Rc<T>, Rc::new);
 impl_newtype_generic!(T: [], Pin<Box<T>>, Box::pin);
 impl_newtype_generic!(T: [], Pin<Rc<T>>, Rc::pin);
 
-impl<'a, T: Exhaust> Exhaust for alloc::borrow::Cow<'a, T> {
-    type Iter = ::core::iter::Map<<T as Exhaust>::Iter, fn(T) -> alloc::borrow::Cow<'a, T>>;
+impl<'a, T: Exhaust> Exhaust for Cow<'a, T> {
+    type Iter = ::core::iter::Map<<T as Exhaust>::Iter, fn(T) -> Cow<'a, T>>;
 
     /// Note that this implementation necessarily ignores the borrowed versus owned distinction;
-    /// every value returned will be a `Cow::Owned`, not a `Cow::Borrowed`.
+    /// every value returned will be a [`Cow::Owned`], not a [`Cow::Borrowed`].
     /// This agrees with the [`PartialEq`] implementation for [`Cow`], which considers
     /// owned and borrowed to be equal.
     fn exhaust() -> Self::Iter {
-        <T as Exhaust>::exhaust().map(alloc::borrow::Cow::Owned)
+        <T as Exhaust>::exhaust().map(Cow::Owned)
     }
 }
 

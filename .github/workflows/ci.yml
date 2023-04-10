@@ -39,8 +39,10 @@ jobs:
     - uses: Swatinem/rust-cache@v2.0.2
 
     - name: Lint
-      run: cargo clippy --timings
-    
+      run: |
+        cargo clippy --timings
+        cargo rustdoc -- -Drustdoc::broken_intra_doc_links
+
     - name: Compile (no features)
       # compile is broken out so we have visibility into compile vs. run times
       run: cargo test --no-default-features --timings --no-run
