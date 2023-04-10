@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "exhaust"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 # TODO: figure out MSRV
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
