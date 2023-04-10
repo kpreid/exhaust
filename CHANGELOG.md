@@ -25,6 +25,8 @@
     * `Pin<Box<T>>`
     * `std::collections::HashSet`
     * `std::io::Cursor`
+    * `std::io::Empty`
+    * `std::io::Sink`
 * Documentation example of a custom `impl Exhaust`.
 
 ### Changed

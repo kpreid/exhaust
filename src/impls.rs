@@ -59,4 +59,4 @@ mod std_impls;
 //   core::sync::atomic::*
 //   alloc::collections::BinaryHeap
 //   std::collections::HashMap (generalize the BTreeMap implementation)
-//   std::io::{BufReader, BufWriter, Sink}
+//   std::io::{BufReader, BufWriter}

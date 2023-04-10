@@ -1,7 +1,7 @@
-use core::fmt;
 use core::hash::{BuildHasher, Hash};
 use core::marker::PhantomData;
 use core::pin::Pin;
+use core::{fmt, iter};
 
 use std::collections::HashSet;
 use std::sync;
@@ -80,6 +80,20 @@ impl<T: Exhaust + AsRef<[u8]>> Exhaust for std::io::Cursor<T> {
                 cursor
             },
         )
+    }
+}
+
+impl Exhaust for std::io::Empty {
+    type Iter = iter::Once<std::io::Empty>;
+    fn exhaust() -> Self::Iter {
+        iter::once(std::io::empty())
+    }
+}
+
+impl Exhaust for std::io::Sink {
+    type Iter = iter::Once<std::io::Sink>;
+    fn exhaust() -> Self::Iter {
+        iter::once(std::io::sink())
     }
 }
 
