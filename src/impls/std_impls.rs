@@ -3,11 +3,13 @@ use core::marker::PhantomData;
 use core::pin::Pin;
 use core::{fmt, iter};
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync;
 use std::vec::Vec;
 
-use crate::iteration::FlatZipMap;
+use itertools::Itertools as _;
+
+use crate::iteration::{peekable_exhaust, FlatZipMap, Pei};
 use crate::patterns::impl_newtype_generic;
 use crate::Exhaust;
 
@@ -63,6 +65,100 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ExhaustPowerset").field(&self.iter).finish()
+    }
+}
+
+impl<K, V, S> Exhaust for HashMap<K, V, S>
+where
+    K: Exhaust + Eq + Hash,
+    V: Exhaust,
+    S: Clone + Default + BuildHasher,
+{
+    type Iter = ExhaustHashMap<K, V, S>;
+
+    /// **Caution:** The order in which this iterator produces elements is currently
+    /// nondeterministic if the hasher `S` is.
+    /// (This might be improved in the future.)
+    fn exhaust() -> Self::Iter {
+        let mut keys: Pei<HashSet<K, S>> = peekable_exhaust::<HashSet<K, S>>();
+        let key_count = keys.peek().map_or(0, HashSet::len);
+        ExhaustHashMap {
+            keys,
+            vals: itertools::repeat_n(V::exhaust(), key_count)
+                .multi_cartesian_product()
+                .peekable(),
+        }
+    }
+}
+
+// Note: This iterator is essentially identical to the one for `BTreeMap`.
+//
+// TODO: Eliminate the construction of actual HashSet keys because it's not beneficial
+pub struct ExhaustHashMap<K, V, S>
+where
+    K: Exhaust + Eq + Hash,
+    V: Exhaust,
+    S: Clone + Default + BuildHasher,
+{
+    keys: Pei<HashSet<K, S>>,
+    vals: iter::Peekable<itertools::MultiProduct<<V as Exhaust>::Iter>>,
+}
+
+impl<K, V, S> Iterator for ExhaustHashMap<K, V, S>
+where
+    K: Exhaust + Eq + Hash,
+    V: Exhaust,
+    S: Clone + Default + BuildHasher,
+{
+    type Item = HashMap<K, V, S>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let keys: HashSet<K, S> = self.keys.peek()?.clone();
+        let vals: Vec<V> = if keys.is_empty() {
+            // Empty sets have no keys and therefore no value iterator elements
+            Vec::new()
+        } else {
+            self.vals.next()?
+        };
+
+        if self.vals.peek().is_none() {
+            self.keys.next();
+            let key_count = self.keys.peek().map_or(0, HashSet::len);
+            self.vals = itertools::repeat_n(V::exhaust(), key_count)
+                .multi_cartesian_product()
+                .peekable();
+        }
+
+        Some(keys.into_iter().zip_eq(vals).collect())
+    }
+}
+
+impl<K, V, S> Clone for ExhaustHashMap<K, V, S>
+where
+    K: Exhaust + Eq + Hash,
+    V: Exhaust,
+    S: Clone + Default + BuildHasher,
+{
+    fn clone(&self) -> Self {
+        Self {
+            keys: self.keys.clone(),
+            vals: self.vals.clone(),
+        }
+    }
+}
+
+impl<K, V, S> fmt::Debug for ExhaustHashMap<K, V, S>
+where
+    K: fmt::Debug + Exhaust + Eq + Hash,
+    V: fmt::Debug + Exhaust,
+    K::Iter: fmt::Debug,
+    V::Iter: fmt::Debug,
+    S: Clone + Default + BuildHasher,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExhaustHashMap")
+            .field("keys", &self.keys)
+            .field("vals", &self.vals)
+            .finish()
     }
 }
 
