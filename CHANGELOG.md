@@ -23,6 +23,7 @@
     * `alloc::collections::BTreeSet`
         * Note: Does not produce lexicographic ordering.
     * `Pin<Box<T>>`
+    * `std::collections::HashMap`
     * `std::collections::HashSet`
     * `std::io::Cursor`
     * `std::io::Empty`

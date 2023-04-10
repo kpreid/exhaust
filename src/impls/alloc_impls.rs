@@ -73,6 +73,8 @@ impl<K: Exhaust + Ord, V: Exhaust> Exhaust for BTreeMap<K, V> {
     }
 }
 
+// Note: This iterator is essentially identical to the one for `HashMap`.
+//
 // TODO: Eliminate the construction of actual BTreeSet keys because it's not beneficial
 pub struct ExhaustBTreeMap<K: Exhaust + Ord, V: Exhaust> {
     keys: Pei<BTreeSet<K>>,

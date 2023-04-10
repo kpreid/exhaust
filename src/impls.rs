@@ -58,4 +58,3 @@ mod std_impls;
 //   core::ops::{Bound, ControlFlow, Range*}
 //   core::sync::atomic::*
 //   alloc::collections::BinaryHeap
-//   std::collections::HashMap (generalize the BTreeMap implementation)

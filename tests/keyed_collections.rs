@@ -4,6 +4,9 @@
 
 #![cfg(feature = "alloc")]
 
+extern crate alloc;
+use alloc::collections::{BTreeMap, BTreeSet};
+
 use exhaust::Exhaust;
 
 fn c<T: Exhaust>() -> Vec<T> {
@@ -12,7 +15,6 @@ fn c<T: Exhaust>() -> Vec<T> {
 
 #[test]
 fn impl_btreeset() {
-    use std::collections::BTreeSet;
     assert_eq!(
         c::<BTreeSet<bool>>(),
         vec![
@@ -42,21 +44,36 @@ fn impl_hashset() {
     );
 }
 
+fn bool_maps() -> Vec<BTreeMap<bool, bool>> {
+    vec![
+        BTreeMap::from_iter([]),
+        BTreeMap::from_iter([(false, false)]),
+        BTreeMap::from_iter([(false, true)]),
+        BTreeMap::from_iter([(true, false)]),
+        BTreeMap::from_iter([(true, true)]),
+        BTreeMap::from_iter([(false, false), (true, false)]),
+        BTreeMap::from_iter([(false, false), (true, true)]),
+        BTreeMap::from_iter([(false, true), (true, false)]),
+        BTreeMap::from_iter([(false, true), (true, true)]),
+    ]
+}
+
 #[test]
 fn impl_btreemap() {
-    use std::collections::BTreeMap;
+    assert_eq!(c::<BTreeMap<bool, bool>>(), bool_maps(),);
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn impl_hashmap() {
+    use std::collections::HashMap;
+    // Exhaustive iteration order currently depends on `HashSet` iteration order, so it
+    // is not deterministic. Therefore, in order to check the results we have to ignore
+    // order, and the easiest way to do that is to convert to BTree types.
     assert_eq!(
-        c::<BTreeMap<bool, bool>>(),
-        vec![
-            BTreeMap::from_iter([]),
-            BTreeMap::from_iter([(false, false)]),
-            BTreeMap::from_iter([(false, true)]),
-            BTreeMap::from_iter([(true, false)]),
-            BTreeMap::from_iter([(true, true)]),
-            BTreeMap::from_iter([(false, false), (true, false)]),
-            BTreeMap::from_iter([(false, false), (true, true)]),
-            BTreeMap::from_iter([(false, true), (true, false)]),
-            BTreeMap::from_iter([(false, true), (true, true)]),
-        ]
+        HashMap::<bool, bool>::exhaust()
+            .map(BTreeMap::from_iter)
+            .collect::<BTreeSet<_>>(),
+        bool_maps().into_iter().collect(),
     );
 }
