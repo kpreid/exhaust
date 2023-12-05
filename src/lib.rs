@@ -24,7 +24,8 @@ pub(crate) mod patterns;
 
 pub mod impls;
 /// Reexport for compatibility with v0.1.0;
-/// new code should use [`impls::ExhaustArray`](ExhaustArray).
+/// new code should use [`impls::ExhaustArray`].
+#[deprecated]
 pub use impls::ExhaustArray;
 
 mod convenience;
@@ -35,10 +36,13 @@ pub mod iteration;
 /// Types that can be exhaustively iterated. That is, an iterator is available which
 /// produces every possible value of this type.
 ///
-/// Implementors must also implement [`Clone`], because it is useful for the purpose of
-/// implementing [`Exhaust`] on types containing this type. This should never be a
-/// significant restriction since a type implementing [`Exhaust`] implies that every
-/// instance can be derived from pure data (“the Nth element of `T::exhaust()`”).
+/// When implementing this trait, take note of
+/// [the requirements noted below in `exhaust()`](Self::exhaust) for a correct implementation.
+///
+/// Implementors must also implement [`Clone`]; this requirement is for the benefit of implementing
+/// [`Exhaust`] for containers of this type. (Hopefully, a future version of the library may relax
+/// this restriction as a breaking change, as it does prevent reasonable implementations for types
+/// such as atomics.)
 ///
 /// # Examples
 ///
@@ -130,15 +134,21 @@ pub trait Exhaust: Clone {
     ///
     /// Implementations should have the following properties:
     ///
-    /// * For any two items `a, b` produced by the iterator, `a != b`.
-    /// * For every value `a` of type `Self`, there is some element `b` of `Self::exhaust()`
-    ///   for which `a == b`, unless it is the case that `a != a`.
+    /// * No duplicates: if [`Self: PartialEq`](PartialEq), then for any two items `a, b` produced
+    ///   by the iterator, `a != b`.
+    /// * Exhaustiveness: If [`Self: PartialEq`](PartialEq), then for every value `a` of type
+    ///   `Self`, there is some element `b` of `Self::exhaust()` for which `a == b`,
+    ///   unless it is the case that `a != a`.
+    ///   If there is no `PartialEq` implementation, then follow the spirit of this rule anyway.
     /// * If there is any value `a` of type `Self` for which `a != a`, then [`Exhaust`]
-    ///   must produce one or more such values.
+    ///   must produce one or more such values (e.g. [`f32::NAN`]).
     /// * `exhaust()` does not panic, nor does the iterator it returns.
     /// * Purity/determinism: every call to `Self::exhaust()`, or [`Clone::clone()`] of a returned
     ///   iterator, should produce the same sequence of items.
+    ///   (If this is not upheld, then derived implementations of [`Exhaust`] on types containing
+    ///   this type will not behave consistently.)
     /// * The iterator has a finite length, that is feasible to actually reach.
+    ///   (For example, [`u64`] does not implement [`Exhaust`].)
     ///
     /// [`Exhaust`] is not an `unsafe trait`, and as such, no soundness property should rest
     /// on implementations having any of the above properties unless the particular implementation
