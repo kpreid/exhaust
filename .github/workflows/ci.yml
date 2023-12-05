@@ -21,7 +21,7 @@ jobs:
   test:
     strategy:
       matrix:
-        toolchain: [stable, beta, nightly]
+        toolchain: [stable, beta, nightly, 1.60.0]
 
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
@@ -72,7 +72,7 @@ jobs:
       if: ${{ always() }}
       uses: actions/upload-artifact@v3
       with:
-        name: cargo-timings ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.depversions }}
+        name: cargo-timings ${{ matrix.toolchain }}
         path: |
           target/cargo-timings/cargo-timing-*.html
 

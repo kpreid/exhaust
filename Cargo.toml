@@ -8,7 +8,7 @@ members = [
 name = "exhaust"
 version = "0.1.2"
 edition = "2021"
-# TODO: figure out MSRV
+rust-version = "1.60.0"
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
 repository = "https://github.com/kpreid/exhaust/"
 license = "MIT OR Apache-2.0"
