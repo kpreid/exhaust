@@ -27,7 +27,7 @@ jobs:
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
 
     steps:
-    - uses: actions/checkout@v3.1.0
+    - uses: actions/checkout@v4.0.0
 
     - name: Install Rust toolchain
       # Install exactly what we need: compiler, Cargo, clippy, rustfmt
@@ -36,7 +36,7 @@ jobs:
           rustup override set "${{ matrix.toolchain }}"
 
     # Load cache before doing any Rust builds
-    - uses: Swatinem/rust-cache@v2.0.2
+    - uses: Swatinem/rust-cache@v2.7.1
 
     - name: Lint
       run: |
@@ -80,15 +80,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3.1.0
+    - uses: actions/checkout@v4.0.0
 
-    - uses: Swatinem/rust-cache@v2.0.2
+    - uses: Swatinem/rust-cache@v2.7.1
 
     - name: Check semver
-      uses: obi1kenobi/cargo-semver-checks-action@v1
+      uses: obi1kenobi/cargo-semver-checks-action@v2.1
       # Use workspace target dir for cargo install's build, so that the build will be cached.
       env:
         CARGO_TARGET_DIR: target/
       with:
-        crate-name: exhaust
-        version-tag-prefix: v
+        package: "exhaust"
+
