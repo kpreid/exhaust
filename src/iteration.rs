@@ -62,7 +62,7 @@ where
             .field("outer_iterator", &self.outer_iterator)
             .field("outer_item", &self.inner.as_ref().map(|i| &i.0))
             .field("inner_iterator", &self.inner.as_ref().map(|i| &i.1))
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
