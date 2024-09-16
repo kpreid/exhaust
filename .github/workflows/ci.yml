@@ -16,6 +16,8 @@ env:
   # artifacts, so they won't be useful for anything (other than maybe the exhaustive
   # builds with different features).
   CARGO_INCREMENTAL: 0
+  # Collect backtrace on panic.
+  RUST_BACKTRACE: 1
 
 jobs:
   test:
@@ -42,11 +44,6 @@ jobs:
     # The repository does not have a versioned Cargo.lock file.
     # As a substitute, we always test on minimal and maximal versions.
     - run: cargo +nightly update -Zdirect-minimal-versions
-
-    - name: Lint
-      run: |
-        cargo clippy --timings
-        cargo rustdoc -- -Drustdoc::broken_intra_doc_links
 
     - name: Compile (no features)
       # compile is broken out so we have visibility into compile vs. run times
@@ -79,11 +76,113 @@ jobs:
     # (for understanding build performance in CI)
     - name: Save cargo --timings output
       if: ${{ always() }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: cargo-timings ${{ matrix.toolchain }}
+        name: cargo-timings test ${{ matrix.toolchain }}
         path: |
           target/cargo-timings/cargo-timing-*.html
+
+
+  # Run linters.
+  #
+  # This job is separate from the main "test" job so that:
+  # * Lint results are delivered quickly by running them in parallel with other jobs.
+  # * We build with `-Dwarnings` so the failures aren't silent, but don't want this to
+  #   cause *re*building in the main build job and its cache.
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["stable", "nightly", "beta"]
+
+    runs-on: ubuntu-latest
+    continue-on-error: false
+
+    env:
+      RUSTFLAGS: '-Dwarnings'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      run: |
+          rustup toolchain install "${{ matrix.toolchain }}" --profile=minimal --component=clippy
+          rustup override set "${{ matrix.toolchain }}"
+
+    - uses: Swatinem/rust-cache@v2.7.3
+      with:
+        # Job's likely to fail and yet have useful cache material.
+        cache-on-failure: true
+
+    - name: Lint
+      run: |
+        cargo clippy --timings
+        cargo rustdoc -- -Drustdoc::broken_intra_doc_links
+  
+    - name: Save cargo --timings output
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: cargo-timings lint ${{ matrix.toolchain }}
+        path: |
+          target/cargo-timings/cargo-timing-*.html
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fmt --check
+          
+  no_std:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      run: |
+        rustup toolchain install stable --profile minimal
+        rustup target add thumbv7em-none-eabihf
+
+    - name: no_std lint
+      run: |
+        cargo clippy --target=thumbv7em-none-eabihf --no-default-features
+
+    - name: no_std build
+      # This is `cargo build`, not `cargo check`, because `cargo check` won't detect problems like
+      # use of undefined linker symbols. Not sure if that matters.
+      run: |
+        cargo build --target=thumbv7em-none-eabihf --no-default-features
+
+  # Run mutation testing against the changed code
+  # Based on example from https://mutants.rs/pr-diff.html
+  incremental-mutants:
+    runs-on: ubuntu-latest
+    # Running on push would require more work to determine the base revision
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Needed to ensure `main` branch is needed
+          fetch-depth: 0
+
+      - uses: Swatinem/rust-cache@v2.7.3
+
+      - run: cargo install --locked cargo-mutants@24.7.1
+
+      - name: Relative diff
+        run: |
+          git branch -av
+          git diff origin/${{ github.base_ref }}.. | tee git.diff
+      
+      - name: Mutants
+        run: cargo mutants --in-diff git.diff -- --all-features
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: mutants-incremental.out
+          path: mutants.out
 
   semver:
     runs-on: ubuntu-latest
