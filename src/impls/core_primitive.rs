@@ -40,7 +40,7 @@ impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
     type Iter = ExhaustArray<T, N>;
     fn exhaust() -> Self::Iter {
         ExhaustArray {
-            state: [(); N].map(|_| peekable_exhaust::<T>()),
+            state: [(); N].map(|()| peekable_exhaust::<T>()),
             done_zero: false,
         }
     }
