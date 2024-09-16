@@ -113,12 +113,7 @@ where
     type Item = HashMap<K, V, S>;
     fn next(&mut self) -> Option<Self::Item> {
         let keys: HashSet<K, S> = self.keys.peek()?.clone();
-        let vals: Vec<V> = if keys.is_empty() {
-            // Empty sets have no keys and therefore no value iterator elements
-            Vec::new()
-        } else {
-            self.vals.next()?
-        };
+        let vals: Vec<V> = self.vals.next()?;
 
         if self.vals.peek().is_none() {
             self.keys.next();
