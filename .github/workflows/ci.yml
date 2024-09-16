@@ -37,7 +37,7 @@ jobs:
           rustup override set "${{ matrix.toolchain }}"
 
     # Load cache before doing any Rust builds
-    - uses: Swatinem/rust-cache@v2.7.1
+    - uses: Swatinem/rust-cache@v2.7.3
 
     # The repository does not have a versioned Cargo.lock file.
     # As a substitute, we always test on minimal and maximal versions.
@@ -91,7 +91,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4.0.0
 
-    - uses: Swatinem/rust-cache@v2.7.1
+    - uses: Swatinem/rust-cache@v2.7.3
 
     - name: Check semver
       uses: obi1kenobi/cargo-semver-checks-action@v2.1
