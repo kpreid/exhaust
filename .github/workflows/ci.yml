@@ -33,10 +33,15 @@ jobs:
       # Install exactly what we need: compiler, Cargo, clippy, rustfmt
       run: |
           rustup toolchain install "${{ matrix.toolchain }}" --profile=minimal --component=clippy --component=rustfmt
+          rustup toolchain install nightly --profile=minimal
           rustup override set "${{ matrix.toolchain }}"
 
     # Load cache before doing any Rust builds
     - uses: Swatinem/rust-cache@v2.7.1
+
+    # The repository does not have a versioned Cargo.lock file.
+    # As a substitute, we always test on minimal and maximal versions.
+    - run: cargo +nightly update -Zdirect-minimal-versions
 
     - name: Lint
       run: |
@@ -57,13 +62,17 @@ jobs:
     - name: Run tests (all features)
       run: cargo test --all-features
 
-    - name: Update
+    # Test with latest deps, but only if we can.
+    # TODO: Once Cargo has the MSRV-aware resolver, this `if` will be unnecessary.
+    - if: ${{ matrix.toolchain != '1.60.0' }}
       run: cargo update
 
     - name: Compile with updates
+      if: ${{ matrix.toolchain != '1.60.0' }}
       run: cargo test --timings --no-run
 
     - name: Test with updates
+      if: ${{ matrix.toolchain != '1.60.0' }}
       run: cargo test --timings
 
     # Save timing reports so we can download and view them
