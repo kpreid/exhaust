@@ -193,7 +193,7 @@ jobs:
     - uses: Swatinem/rust-cache@v2.7.3
 
     - name: Check semver
-      uses: obi1kenobi/cargo-semver-checks-action@v2.1
+      uses: obi1kenobi/cargo-semver-checks-action@v2.6
       # Use workspace target dir for cargo install's build, so that the build will be cached.
       env:
         CARGO_TARGET_DIR: target/
