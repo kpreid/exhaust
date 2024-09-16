@@ -86,12 +86,7 @@ impl<K: Exhaust + Ord, V: Exhaust> Iterator for ExhaustBTreeMap<K, V> {
     type Item = BTreeMap<K, V>;
     fn next(&mut self) -> Option<Self::Item> {
         let keys: BTreeSet<K> = self.keys.peek()?.clone();
-        let vals: Vec<V> = if keys.is_empty() {
-            // Empty sets have no keys and therefore no value iterator elements
-            Vec::new()
-        } else {
-            self.vals.next()?
-        };
+        let vals: Vec<V> = self.vals.next()?;
 
         if self.vals.peek().is_none() {
             self.keys.next();
