@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "17:00"
+      timezone: "America/Los_Angeles"
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "17:00"
+      timezone: "America/Los_Angeles"
+    # Note: We would *like* the versioning strategy "increase-if-necessary",
+    # but Dependabot does not currently support that. As a workaround, to
+    # decrease noise, we configure to ignore patch releases below.
+    versioning-strategy: "auto"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
