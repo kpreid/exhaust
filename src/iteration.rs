@@ -71,6 +71,7 @@ where
     I: Iterator,
     J: Iterator,
 {
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     pub(crate) fn new(
         outer_iterator: I,
         iter_fn: fn(&I::Item) -> J,
