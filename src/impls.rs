@@ -20,7 +20,6 @@ mod core_option;
 mod core_primitive;
 pub use core_primitive::*;
 mod core_result;
-pub use core_result::*;
 mod core_task;
 
 #[cfg(feature = "alloc")]

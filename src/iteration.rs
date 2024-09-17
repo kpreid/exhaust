@@ -12,11 +12,11 @@ use crate::Exhaust;
 /// implementations.
 pub type Pei<T> = Peekable<<T as Exhaust>::Iter>;
 
-/// Construct a [`Peekable`] exhaustive iterator.
+/// Construct a [`Peekable`] exhaustive factory iterator.
 ///
 /// Peekable iterators are useful for iterating over the product of multiple iterators.
 pub fn peekable_exhaust<T: Exhaust>() -> Pei<T> {
-    T::exhaust().peekable()
+    T::exhaust_factories().peekable()
 }
 
 /// Perform “carry” within a pair of peekable iterators.

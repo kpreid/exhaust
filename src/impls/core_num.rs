@@ -12,9 +12,11 @@ macro_rules! impl_nonzero {
             impl Exhaust for num::$nzt {
                 type Iter = [< Exhaust $nzt >];
 
-                fn exhaust() -> Self::Iter {
-                    [< Exhaust $nzt >] ($t::exhaust().filter_map(num::$nzt::new))
+                fn exhaust_factories() -> Self::Iter {
+                    [< Exhaust $nzt >] ($t::exhaust_factories().filter_map(num::$nzt::new))
                 }
+
+                crate::patterns::factory_is_self!();
             }
 
             #[doc = concat!("Iterator implementation of `", stringify!($nzt), "::exhaust()`.")]
