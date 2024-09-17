@@ -13,16 +13,28 @@
 //! * Pointers, for the same reason as references (and we could generate invalid pointers,
 //!   but that would be almost certainly pointless).
 //! * [`u64`], [`i64`], and [`f64`], because they are too large to feasibly exhaust.
-//! * [`core::cell::UnsafeCell`], because it does not implement [`Clone`].
+//! * Types which do not implement [`Clone`]:
+//!
+//!   * [`core::cell::UnsafeCell`]
+//!   * [`std::sync::Mutex`] and `RwLock`
+//!   * [`core::sync::atomic::Atomic*`](core::sync::atomic)
+//!
+//!   A future version of the library might relax the [`Clone`] bound,
+//!   but this is currently impossible.
+//! * Containers that permit duplicate items, and can therefore be unboundedly large:
+//!   * [`alloc::vec::Vec`]
+//!   * [`alloc::collections::VecDeque`]
+//!   * [`alloc::collections::LinkedList`]
+//!   * [`alloc::collections::BinaryHeap`]
+//!
 //! * [`core::mem::ManuallyDrop`], because it would be a memory leak.
 //! * [`core::mem::MaybeUninit`], because it is not useful to obtain a `MaybeUninit<T>`
 //!   value without knowing whether it is initialized, and if they are to be all
 //!   initialized, then `T::exhaust()` is just as good.
-//! * [`alloc::vec::Vec`] and other collections that permit duplicate items, since their
-//!   possible values are bounded only by available memory.
+//! * [`core::ops::Range*`](core::ops), because it is ambiguous whether inverted (start > end)
+//!   ranges should be generated.
 //! * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
 //! * [`std::io::Stdout`] and other types whose sole use is in performing IO.
-//! * [`std::sync::Mutex`] and `RwLock`, which do not implement [`Clone`].
 //!
 //! [`Exhaust`]: crate::Exhaust
 
@@ -52,9 +64,7 @@ mod std_impls;
 // TODO: The following implementations might be missing:
 //   core::iter::* (combinatorial explosion fun!)
 //     Iterators for std library types *not* in core::iter
-//   core::lazy::* (not yet stabilized)
+//   `OnceCell` & `OnceLock`
 //   core::fmt::Alignment
 //   core::fmt::Error (do we want to impl for Error types in general?)
 //   core::ops::{Bound, ControlFlow, Range*}
-//   core::sync::atomic::*
-//   alloc::collections::BinaryHeap
