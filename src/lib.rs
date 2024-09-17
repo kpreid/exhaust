@@ -25,7 +25,15 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-pub use exhaust_macros::Exhaust;
+/// Allows the derive macro to be used internally.
+extern crate self as exhaust;
+
+// -------------------------------------------------------------------------------------------------
+
+#[cfg(doc)]
+use core::iter::{DoubleEndedIterator, ExactSizeIterator, FusedIterator};
+
+// -------------------------------------------------------------------------------------------------
 
 pub(crate) mod patterns;
 
@@ -40,16 +48,39 @@ pub use convenience::*;
 
 pub mod iteration;
 
+// -------------------------------------------------------------------------------------------------
+
 /// Types that can be exhaustively iterated. That is, an iterator is available which
 /// produces every possible value of this type.
 ///
-/// When implementing this trait, take note of
-/// [the requirements noted below in `exhaust()`](Self::exhaust) for a correct implementation.
+/// # Properties
 ///
-/// Implementors must also implement [`Clone`]; this requirement is for the benefit of implementing
-/// [`Exhaust`] for containers of this type. (Hopefully, a future version of the library may relax
-/// this restriction as a breaking change, as it does prevent reasonable implementations for types
-/// such as atomics.)
+/// Implementations should have the following properties:
+///
+/// * No duplicates: if [`Self: PartialEq`](PartialEq), then for any two items `a, b` produced
+///   by the iterator, `a != b`.
+/// * Exhaustiveness: If [`Self: PartialEq`](PartialEq), then for every value `a` of type
+///   `Self`, there is some element `b` of `Self::exhaust()` for which `a == b`,
+///   unless it is the case that `a != a`.
+///   If there is no `PartialEq` implementation, then follow the spirit of this rule anyway.
+/// * If there is any value `a` of type `Self` for which `a != a`, then [`Exhaust`]
+///   must produce one or more such values (e.g. [`f32::NAN`]).
+/// * `exhaust()` does not panic, nor does the iterator it returns,
+///   except in the event that memory allocation fails.
+/// * Purity/determinism: every call to `Self::exhaust()`, or [`Clone::clone()`] of a returned
+///   iterator or factory, should produce the same sequence of items.
+///   (If this is not upheld, then derived implementations of [`Exhaust`] on types containing
+///   this type will not behave consistently.)
+/// * The iterator has a finite length, that is feasible to actually reach.
+///   (For example, [`u64`] does not implement [`Exhaust`].)
+///
+/// The following further properties are recommended when feasible:
+///
+/// * If `Self: Ord`, then the items are sorted in ascending order.
+///
+/// [`Exhaust`] is not an `unsafe trait`, and as such, no soundness property should rest
+/// on implementations having any of the above properties unless the particular implementation
+/// guarantees them.
 ///
 /// # Examples
 ///
@@ -58,13 +89,13 @@ pub mod iteration;
 /// ```
 /// use exhaust::Exhaust;
 ///
-/// #[derive(Clone, PartialEq, Debug, Exhaust)]
+/// #[derive(PartialEq, Debug, Exhaust)]
 /// struct Foo {
 ///     a: bool,
 ///     b: Bar,
 /// }
 ///
-/// #[derive(Clone, PartialEq, Debug, Exhaust)]
+/// #[derive(PartialEq, Debug, Exhaust)]
 /// enum Bar {
 ///     One,
 ///     Two(bool),
@@ -93,12 +124,21 @@ pub mod iteration;
 ///
 /// impl Exhaust for AsciiLetter {
 ///     type Iter = ExhaustAsciiLetter;
-///     fn exhaust() -> Self::Iter {
+///
+///     // We could avoid needing to `derive(Clone)` by using `char` as the factory, but
+///     // if we did that, then `from_factory()` must check its argument for validity.
+///     type Factory = Self;
+///
+///     fn exhaust_factories() -> Self::Iter {
 ///         ExhaustAsciiLetter { next: 'A' }
+///     }
+///
+///     fn from_factory(factory: Self::Factory) -> Self {
+///         factory
 ///     }
 /// }
 ///
-/// #[derive(Clone)]
+/// #[derive(Clone)]  // All `Exhaust::Iter`s must implement `Clone`.
 /// struct ExhaustAsciiLetter {
 ///     next: char
 /// }
@@ -162,42 +202,85 @@ pub mod iteration;
 ///   ranges should be generated.
 /// * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
 /// * [`std::io::Stdout`] and other types whose sole use is in performing IO.
-
-pub trait Exhaust: Clone {
-    /// Type of iterator returned by [`Self::exhaust()`].
+pub trait Exhaust: Sized {
+    /// Iterator type returned by [`Self::exhaust_factories()`].
+    /// See the trait documentation for what properties this iterator should have.
+    ///
+    /// <div class="warning">
     ///
     /// Note: While it is necessary for this type to be exposed, an implementation of
-    /// [`Exhaust`] changing this to another type should not be considered a breaking
+    /// [`Exhaust`] changing to another iterator type should not be considered a breaking
     /// change, as long as it still has the same iterator properties (e.g.
-    /// [`ExactSizeIterator`]).
-    type Iter: Iterator<Item = Self> + Clone;
+    /// [`ExactSizeIterator`]); it should be treated as an implementation detail.
+    ///
+    /// </div>
+    type Iter: Iterator<Item = Self::Factory> + Clone;
+
+    /// Data which can be used to construct `Self`.
+    ///
+    /// The difference between `Self` and `Self::Factory` is that the `Factory` must
+    /// implement [`Clone`] even if `Self` does not. In the case where `Self` does implement
+    /// [`Clone`], this can be set equal to `Self`.
+    ///
+    /// Factories are useful for implementing [`Exhaust`] for other types that contain this type,
+    /// when this type does not implement [`Clone`],
+    /// since the process will often require producing clones.
+    ///
+    /// <div class="warning">
+    ///
+    /// Note: While it is necessary for this type to be exposed, an implementation of
+    /// [`Exhaust`] changing to another factory type should not be considered a breaking
+    /// change; it should be treated as an implementation detail, unless otherwise documented.
+    ///
+    /// </div>
+    type Factory: Clone;
 
     /// Returns an iterator over all values of this type.
     ///
-    /// Implementations should have the following properties:
+    /// See the trait documentation for what properties this iterator should have.
     ///
-    /// * No duplicates: if [`Self: PartialEq`](PartialEq), then for any two items `a, b` produced
-    ///   by the iterator, `a != b`.
-    /// * Exhaustiveness: If [`Self: PartialEq`](PartialEq), then for every value `a` of type
-    ///   `Self`, there is some element `b` of `Self::exhaust()` for which `a == b`,
-    ///   unless it is the case that `a != a`.
-    ///   If there is no `PartialEq` implementation, then follow the spirit of this rule anyway.
-    /// * If there is any value `a` of type `Self` for which `a != a`, then [`Exhaust`]
-    ///   must produce one or more such values (e.g. [`f32::NAN`]).
-    /// * `exhaust()` does not panic, nor does the iterator it returns.
-    /// * Purity/determinism: every call to `Self::exhaust()`, or [`Clone::clone()`] of a returned
-    ///   iterator, should produce the same sequence of items.
-    ///   (If this is not upheld, then derived implementations of [`Exhaust`] on types containing
-    ///   this type will not behave consistently.)
-    /// * The iterator has a finite length, that is feasible to actually reach.
-    ///   (For example, [`u64`] does not implement [`Exhaust`].)
+    /// This function is equivalent to `Self::exhaust_factories().map(Self::from_factory)`.
+    /// Implementors should not override it.
+    fn exhaust() -> Produce<Self> {
+        Self::exhaust_factories().map(Self::from_factory)
+    }
+
+    /// Returns an iterator over [factories](Self::Factory) for all values of this type.
     ///
-    /// [`Exhaust`] is not an `unsafe trait`, and as such, no soundness property should rest
-    /// on implementations having any of the above properties unless the particular implementation
-    /// guarantees them.
+    /// Implement this function to implement the trait. Call this function when implementing an
+    /// [`Exhaust::Iter`] iterator for a type that contains this type.
     ///
-    /// The following further properties are recommended when feasible:
+    /// See the trait documentation for what properties this iterator should have.
+    fn exhaust_factories() -> Self::Iter;
+
+    /// Construct a concrete value of this type from a `Self::Factory` value produced by
+    /// its `Self::Iter`.
     ///
-    /// * If `Self: Ord`, then the items are sorted in ascending order.
-    fn exhaust() -> Self::Iter;
+    /// <div class="warning">
+    ///
+    /// Caution: While this function is meant to be used only with values produced by the iterator,
+    /// this cannot be enforced; therefore, make sure it cannot bypass any invariants that
+    /// the type might have.
+    ///
+    /// It is acceptable for this function to panic if it is
+    /// given a value that [`Self::Iter`] is unable to produce.
+    ///
+    /// </div>
+    fn from_factory(factory: Self::Factory) -> Self;
 }
+
+/// Derive macro generating an impl of the trait [`Exhaust`].
+///
+/// This macro may be applied to `struct`s and `enum`s, but not `union`s.
+///
+/// The generated iterator and factory types will be unnameable except through
+/// the trait implementation’s associated types.
+///
+/// The generated iterator implements [`FusedIterator`],
+/// but not [`DoubleEndedIterator`] or [`ExactSizeIterator`].
+/// It does not currently override any of the optional iterator methods such as
+/// [`Iterator::size_hint()`].
+pub use exhaust_macros::Exhaust;
+
+type Produce<T> =
+    core::iter::Map<<T as Exhaust>::Iter, fn(<<T as Exhaust>::Iter as Iterator>::Item) -> T>;

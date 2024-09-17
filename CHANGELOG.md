@@ -2,17 +2,48 @@
 
 ## Unreleased 0.2.0 (date TBD)
 
+### Breaking: No `Clone` Requirement
+
+The `Exhaust` trait no longer requires `Self: Clone`.
+This allows it to be implemented for many more types, such as `Mutex` and `Atomic*`,
+which can be *constructed* with arbitrary data but not cloned.
+
+In order to support this, the `Exhaust` trait now separates iteration over the possible data
+(which still must be cloneable) from construction of the final value.
+The new definition of the trait is:
+
+```rust
+pub trait Exhaust: Sized {
+    type Iter: FusedIterator<Item = Self::Factory> + Clone;
+    type Factory: Clone;                                    // New
+
+    // Required methods
+    fn exhaust_factories() -> Self::Iter;                   // New
+    fn from_factory(factory: Self::Factory) -> Self;        // New
+
+    // Provided method
+    fn exhaust() -> impl Iterator<Item = Self>;
+}
+```
+
+The `Factory` is the cloneable data, so named since it is a means of constructing many `Self`.
+Implementors must return an iterator which produces `Factory` instead of `Self`.
+They may then perform the final construction in `from_factory()`.
+
+Existing implementations may be migrated by adding `type Factory = Self`
+and renaming `fn exhaust()` to `fn exhaust_factories()`.
+However, it may be possible to simplify the iterator by moving some code into `fn from_factory()`.
+
 ### Changed
 
 * The minimum supported Rust version is now 1.80.
+* **Breaking:** The derive macro `derive(Exhaust)` now hides its generated items.
+  They can only be accessed through the trait implementation’s associated types.
 
 ### Removed
 
 * `<Option<T> as Exhaust>::Iter` no longer implements `DoubleEndedIterator`.
   This might be added back in the future.
-* Removed `exhaust::ExhaustArray` from the crate root.
-* Removed the public module `exhaust::impls`.
-  The iterators can only be accessed through the trait implementation’s associated types.
 
 ## 0.1.2 (2024-09-18)
 

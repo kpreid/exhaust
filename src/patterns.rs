@@ -3,13 +3,25 @@
 //! These are not public; they are intended to be freely modified as suits
 //! the use cases that come up internally.
 
+macro_rules! factory_is_self {
+    () => {
+        type Factory = Self;
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            factory
+        }
+    };
+}
+pub(crate) use factory_is_self;
+
 macro_rules! impl_via_array {
     ($self:ty, $array:expr) => {
         impl $crate::Exhaust for $self {
             type Iter = ::core::array::IntoIter<Self, { $array.len() }>;
-            fn exhaust() -> Self::Iter {
+            fn exhaust_factories() -> Self::Iter {
                 $array.into_iter()
             }
+            $crate::patterns::factory_is_self!();
         }
     };
 }
@@ -19,9 +31,10 @@ macro_rules! impl_via_range {
     ($self:ty, $start:expr, $end:expr) => {
         impl $crate::Exhaust for $self {
             type Iter = ::core::ops::RangeInclusive<$self>;
-            fn exhaust() -> Self::Iter {
-                ($start)..=($end)
+            fn exhaust_factories() -> Self::Iter {
+                (($start)..=($end))
             }
+            $crate::patterns::factory_is_self!();
         }
     };
 }
@@ -36,12 +49,16 @@ macro_rules! impl_newtype_generic {
     ($tvar:ident : [ $( $bounds:tt )* ] , $container:ty, $wrap_fn:expr) => {
         impl<$tvar: $crate::Exhaust> $crate::Exhaust for $container
         where
-            $tvar: $( $bounds )*
+            $tvar: Clone + $( $bounds )*
         {
-            type Iter =
-                ::core::iter::Map<<$tvar as $crate::Exhaust>::Iter, fn($tvar) -> $container>;
-            fn exhaust() -> Self::Iter {
-                <$tvar as $crate::Exhaust>::exhaust().map($wrap_fn)
+            type Iter = <$tvar as $crate::Exhaust>::Iter;
+            fn exhaust_factories() -> Self::Iter {
+                <$tvar as $crate::Exhaust>::exhaust_factories()
+            }
+
+            type Factory = <$tvar as $crate::Exhaust>::Factory;
+            fn from_factory(factory: Self::Factory) -> Self {
+                $wrap_fn(<$tvar as $crate::Exhaust>::from_factory(factory))
             }
         }
     };

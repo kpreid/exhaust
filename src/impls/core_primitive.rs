@@ -1,14 +1,15 @@
-use core::iter;
+use core::{fmt, iter};
 
 use crate::iteration::{carry, peekable_exhaust};
-use crate::patterns::{impl_newtype_generic, impl_via_array, impl_via_range};
+use crate::patterns::{factory_is_self, impl_newtype_generic, impl_via_array, impl_via_range};
 use crate::Exhaust;
 
 impl Exhaust for () {
     type Iter = iter::Once<()>;
-    fn exhaust() -> Self::Iter {
+    fn exhaust_factories() -> Self::Iter {
         iter::once(())
     }
+    factory_is_self!();
 }
 
 // Implement single-element tuples in the same way we implement other generic containers.
@@ -30,31 +31,59 @@ impl_via_range!(u32, u32::MIN, u32::MAX);
 // i64 and larger sizes are not implemented because it is not feasible to exhaust them.
 /// Note: The floats produced include many `NaN`s (all unequal in representation).
 impl Exhaust for f32 {
-    type Iter = core::iter::Map<<u32 as Exhaust>::Iter, fn(u32) -> f32>;
-    fn exhaust() -> Self::Iter {
-        u32::exhaust().map(f32::from_bits)
+    type Iter = <u32 as Exhaust>::Iter;
+    type Factory = u32;
+    fn exhaust_factories() -> Self::Iter {
+        u32::exhaust_factories()
+    }
+    fn from_factory(factory: Self::Factory) -> Self {
+        f32::from_bits(factory)
     }
 }
 
 impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
     type Iter = ExhaustArray<T, N>;
-    fn exhaust() -> Self::Iter {
+    type Factory = [T::Factory; N];
+    fn exhaust_factories() -> Self::Iter {
         ExhaustArray {
             state: [(); N].map(|()| peekable_exhaust::<T>()),
             done_zero: false,
         }
     }
+    fn from_factory(factory: Self::Factory) -> Self {
+        factory.map(T::from_factory)
+    }
 }
 
 /// Iterator implementation of `[T; N]::exhaust()`.
-#[derive(Clone, Debug)]
 pub struct ExhaustArray<T: Exhaust, const N: usize> {
     state: [iter::Peekable<T::Iter>; N],
     done_zero: bool,
 }
 
+impl<T, const N: usize> fmt::Debug for ExhaustArray<T, N>
+where
+    T: Exhaust<Iter: fmt::Debug, Factory: fmt::Debug>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExhaustArray")
+            .field("state", &self.state)
+            .field("done_zero", &self.done_zero)
+            .finish()
+    }
+}
+
+impl<T: Exhaust, const N: usize> Clone for ExhaustArray<T, N> {
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            done_zero: self.done_zero,
+        }
+    }
+}
+
 impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
-    type Item = [T; N];
+    type Item = [T::Factory; N];
     fn next(&mut self) -> Option<Self::Item> {
         if N == 0 {
             return if self.done_zero {

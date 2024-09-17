@@ -8,9 +8,13 @@ use crate::common::{ConstructorSyntax, ExhaustContext};
 /// or enum variant.
 pub(crate) struct ExhaustFields {
     /// Field declarations for the iterator state, with trailing comma.
-    pub field_decls: TokenStream2,
+    pub state_field_decls: TokenStream2,
+    /// Field declarations for the factory struct/variant.
+    pub factory_field_decls: syn::Fields,
     /// Field initializers for [`Self::fields`], with trailing comma.
     pub initializers: TokenStream2,
+    /// Field cloning expressions for [`Self::fields`], with trailing comma.
+    pub cloners: TokenStream2,
     /// Patterns to bind the fields.
     pub field_pats: TokenStream2,
     /// Code to implement advancing the iterator. [`Self::field_pats`] should be in scope.
@@ -26,7 +30,7 @@ pub(crate) struct ExhaustFields {
 pub(crate) fn exhaust_iter_fields(
     ctx: &ExhaustContext,
     struct_fields: &syn::Fields,
-    constructor: &ConstructorSyntax,
+    factory_type_constructor: &ConstructorSyntax,
 ) -> ExhaustFields {
     assert!(
         !struct_fields.is_empty(),
@@ -36,7 +40,15 @@ pub(crate) fn exhaust_iter_fields(
     let crate_path = &ctx.exhaust_crate_path;
 
     #[allow(clippy::type_complexity)]
-    let (iterator_fields, iterator_fields_init, iter_field_names, target_field_names, field_types): (
+    let (
+        iterator_fields,
+        iterator_fields_init,
+        iterator_fields_clone,
+        iter_field_names,
+        target_field_names,
+        field_types,
+    ): (
+        Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -48,15 +60,21 @@ pub(crate) fn exhaust_iter_fields(
         .map(|(index, field)| {
             let target_field_name = match &field.ident {
                 Some(name) => name.to_token_stream(),
-                None => syn::LitInt::new(&format!("{}", index), Span::mixed_site()).to_token_stream(),
+                None => {
+                    syn::LitInt::new(&format!("{}", index), Span::mixed_site()).to_token_stream()
+                }
             };
 
             // Generate a field name to use in the iterator. By renaming the fields we ensure
             // they won't conflict with variables used in the rest of the iterator code.
-            let iter_field_name = Ident::new(&match &field.ident {
-                Some(name) => format!("iter_f_{}", name),
-                None => format!("iter_f_{}", index),
-            }, Span::mixed_site()).to_token_stream();
+            let iter_field_name = Ident::new(
+                &match &field.ident {
+                    Some(name) => format!("iter_f_{}", name),
+                    None => format!("iter_f_{}", index),
+                },
+                Span::mixed_site(),
+            )
+            .to_token_stream();
 
             let field_type = &field.ty;
 
@@ -67,12 +85,46 @@ pub(crate) fn exhaust_iter_fields(
                 quote! {
                     #iter_field_name : #crate_path::iteration::peekable_exhaust::<#field_type>()
                 },
+                quote! {
+                    #iter_field_name : ::core::clone::Clone::clone(#iter_field_name)
+                },
                 iter_field_name,
                 target_field_name,
                 field_type.clone().to_token_stream(),
             )
         })
         .multiunzip();
+
+    let factory_field_decls = match struct_fields {
+        syn::Fields::Named(fields) => syn::Fields::Named(syn::FieldsNamed {
+            brace_token: syn::token::Brace::default(),
+            named: fields
+                .named
+                .iter()
+                .map(|field| -> syn::Field {
+                    let ident = &field.ident;
+                    let ty = &field.ty;
+                    syn::parse_quote! {
+                        #ident : <#ty as #crate_path::Exhaust>::Factory
+                    }
+                })
+                .collect(),
+        }),
+        syn::Fields::Unnamed(fields) => syn::Fields::Unnamed(syn::FieldsUnnamed {
+            paren_token: syn::token::Paren::default(),
+            unnamed: fields
+                .unnamed
+                .iter()
+                .map(|field| -> syn::Field {
+                    let ty = &field.ty;
+                    syn::parse_quote! {
+                        <#ty as #crate_path::Exhaust>::Factory
+                    }
+                })
+                .collect(),
+        }),
+        syn::Fields::Unit => syn::Fields::Unit,
+    };
 
     let field_value_getters: Vec<TokenStream2> = iter_field_names
         .iter()
@@ -109,31 +161,36 @@ pub(crate) fn exhaust_iter_fields(
             }
         });
 
-    let item_expr = constructor.value_expr(target_field_names.iter(), field_value_getters.iter());
+    let factory_item_expr =
+        factory_type_constructor.value_expr(target_field_names.iter(), field_value_getters.iter());
 
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
     let advance = quote! {
         if #( #iter_field_names.peek().is_some() && )* true {
-            // Gather that next item, advancing the last field iterator only.
-            let item = #item_expr;
+            // Gather that next factory, advancing the last field iterator only.
+            let factory = #factory_item_expr;
 
             // Perform carries to other field iterators.
             // && short circuiting gives us the behavior we want conveniently, whereas
             // the nearest alternative would be to define a separate function.
             let _ = #( #carries && )* true;
 
-            ::core::option::Option::Some(item)
+            ::core::option::Option::Some(factory)
         } else {
             ::core::option::Option::None
         }
     };
     ExhaustFields {
-        field_decls: quote! {
+        state_field_decls: quote! {
             #( #iterator_fields , )*
         },
+        factory_field_decls,
         initializers: quote! {
             #( #iterator_fields_init , )*
+        },
+        cloners: quote! {
+            #( #iterator_fields_clone , )*
         },
         field_pats: quote! {
             #( #iter_field_names , )*

@@ -14,8 +14,12 @@ pub(crate) struct ExhaustContext {
     /// iterator.
     pub generics: syn::Generics,
 
-    /// Name of the type being iterated.
+    /// Name of the type being exhausted, which is also the type the macro is applied to.
     pub item_type: ConstructorSyntax,
+
+    /// Name of the generated factory type, which is like the type being exhausted
+    /// but with different field types, and is the item type of the generated iterator.
+    pub factory_type: ConstructorSyntax,
 
     /// Name of the generated iterator type.
     pub iterator_type_name: Ident,
@@ -91,7 +95,9 @@ impl ExhaustContext {
         &self,
         iterator_next_body: TokenStream2,
         iterator_default_body: TokenStream2,
+        iterator_clone_body: TokenStream2,
     ) -> TokenStream2 {
+        let exhaust_crate_path = &self.exhaust_crate_path;
         let iterator_type_name = &self.iterator_type_name;
         let (impl_generics, ty_generics, augmented_where_predicates) =
             self.generics_with_bounds(syn::parse_quote! {});
@@ -102,7 +108,7 @@ impl ExhaustContext {
         quote! {
             impl #impl_generics ::core::iter::Iterator for #iterator_type_name #ty_generics
             where #augmented_where_predicates {
-                type Item = #item_type_inst;
+                type Item = <#item_type_inst as #exhaust_crate_path::Exhaust>::Factory;
 
                 fn next(&mut self) -> ::core::option::Option<Self::Item> {
                     #iterator_next_body
@@ -116,7 +122,7 @@ impl ExhaustContext {
                 }
             }
 
-            // A manual impl of Debug would be required to provide the right bounds on the generics,
+            // A manual impl of Debug is required to provide the right bounds on the generics,
             // and given that we're implementing anyway, we might as well provide a cleaner format.
             impl #impl_generics ::core::fmt::Debug for #iterator_type_name #ty_generics
             where #debug_where_predicates {
@@ -124,6 +130,14 @@ impl ExhaustContext {
                     // TODO: print state
                     f.debug_struct(stringify!(#iterator_type_name))
                         .finish_non_exhaustive()
+                }
+            }
+
+            // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
+            impl #impl_generics ::core::clone::Clone for #iterator_type_name #ty_generics
+            where #augmented_where_predicates {
+                fn clone(&self) -> Self {
+                    #iterator_clone_body
                 }
             }
         }
@@ -143,6 +157,17 @@ impl ConstructorSyntax {
     pub fn name_for_incorporation(&self) -> Result<String, syn::Error> {
         match self {
             ConstructorSyntax::Braced(name) => Ok(name.to_string()),
+            ConstructorSyntax::Tuple => Err(syn::Error::new(
+                Span::call_site(),
+                "exhaust-macros internal error: no name for tuple types",
+            )),
+        }
+    }
+
+    /// Returns the path for use in a type declaration or pattern.
+    pub(crate) fn path(&self) -> Result<&TokenStream2, syn::Error> {
+        match self {
+            ConstructorSyntax::Braced(name) => Ok(name),
             ConstructorSyntax::Tuple => Err(syn::Error::new(
                 Span::call_site(),
                 "exhaust-macros internal error: no name for tuple types",
@@ -192,5 +217,101 @@ impl ConstructorSyntax {
             }
             ConstructorSyntax::Tuple => panic!("a tuple is not an enum"),
         }
+    }
+}
+
+/// Generate arms for a match which maps every field of every variant of an enum.
+pub(crate) fn clone_like_match_arms(
+    variants: &Punctuated<syn::Variant, syn::Token![,]>,
+    input_type_name: &TokenStream2,
+    output_type_name: &TokenStream2,
+    binding_mode: &TokenStream2,
+    value_transform: impl Fn(TokenStream2) -> TokenStream2,
+) -> Vec<TokenStream2> {
+    variants
+        .iter()
+        .map(|target_variant| {
+            let variant_name = &target_variant.ident;
+            match &target_variant.fields {
+                syn::Fields::Named(_) => {
+                    let members = target_variant.fields.members().collect::<Vec<_>>();
+                    let values = members
+                        .iter()
+                        .map(|member| value_transform(member.to_token_stream()))
+                        .collect::<Vec<_>>();
+                    quote! {
+                        #input_type_name::#variant_name {
+                            #( #binding_mode #members, )*
+                        } => #output_type_name::#variant_name {
+                            #( #members: #values, )*
+                        }
+                    }
+                }
+                syn::Fields::Unnamed(fields) => {
+                    let vars: Vec<Ident> = (0..fields.unnamed.len())
+                        .map(|i| Ident::new(&format!("clone_f{i}"), Span::mixed_site()))
+                        .collect();
+                    let values = vars
+                        .iter()
+                        .map(|var| value_transform(var.to_token_stream()))
+                        .collect::<Vec<_>>();
+                    quote! {
+                        #input_type_name::#variant_name(
+                            #( #binding_mode #vars, )*
+                        ) => #output_type_name::#variant_name(
+                            #( #values, )*
+                        )
+                    }
+                }
+                syn::Fields::Unit => quote! {
+                    #input_type_name::#variant_name => #output_type_name::#variant_name
+                },
+            }
+        })
+        .collect()
+}
+
+/// Generate a match arm which is a transformation which maps every field of the struct.
+pub(crate) fn clone_like_struct_conversion(
+    fields: &syn::Fields,
+    input_type_name: &TokenStream2,
+    output_type_name: &TokenStream2,
+    binding_mode: &TokenStream2,
+    value_transform: impl Fn(TokenStream2) -> TokenStream2,
+) -> TokenStream2 {
+    match fields {
+        syn::Fields::Named(_) => {
+            let members = fields.members().collect::<Vec<_>>();
+            let values = members
+                .iter()
+                .map(|member| value_transform(member.to_token_stream()))
+                .collect::<Vec<_>>();
+            quote! {
+                #input_type_name {
+                    #( #binding_mode #members, )*
+                } => #output_type_name {
+                    #( #members: #values, )*
+                }
+            }
+        }
+        syn::Fields::Unnamed(fields) => {
+            let vars: Vec<Ident> = (0..fields.unnamed.len())
+                .map(|i| Ident::new(&format!("clone_f{i}"), Span::mixed_site()))
+                .collect();
+            let values = vars
+                .iter()
+                .map(|var| value_transform(var.to_token_stream()))
+                .collect::<Vec<_>>();
+            quote! {
+                #input_type_name(
+                    #( #binding_mode #vars, )*
+                ) => #output_type_name(
+                    #( #values, )*
+                )
+            }
+        }
+        syn::Fields::Unit => quote! {
+            #input_type_name => #output_type_name
+        },
     }
 }

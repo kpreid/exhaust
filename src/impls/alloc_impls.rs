@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 
 use itertools::Itertools as _;
 
-use crate::iteration::{peekable_exhaust, Pei};
+use crate::iteration::peekable_exhaust;
 use crate::patterns::impl_newtype_generic;
 use crate::Exhaust;
 
@@ -18,80 +18,131 @@ impl_newtype_generic!(T: [], Rc<T>, Rc::new);
 impl_newtype_generic!(T: [], Pin<Box<T>>, Box::pin);
 impl_newtype_generic!(T: [], Pin<Rc<T>>, Rc::pin);
 
-impl<'a, T: Exhaust> Exhaust for Cow<'a, T> {
-    type Iter = ::core::iter::Map<<T as Exhaust>::Iter, fn(T) -> Cow<'a, T>>;
+/// Note that this implementation necessarily ignores the borrowed versus owned distinction;
+/// every value returned will be a [`Cow::Owned`], not a [`Cow::Borrowed`].
+/// This agrees with the [`PartialEq`] implementation for [`Cow`], which considers
+/// owned and borrowed to be equal.
+impl<'a, T: Clone + Exhaust> Exhaust for Cow<'a, T> {
+    type Iter = <T as Exhaust>::Iter;
+    type Factory = <T as Exhaust>::Factory;
 
-    /// Note that this implementation necessarily ignores the borrowed versus owned distinction;
-    /// every value returned will be a [`Cow::Owned`], not a [`Cow::Borrowed`].
-    /// This agrees with the [`PartialEq`] implementation for [`Cow`], which considers
-    /// owned and borrowed to be equal.
-    fn exhaust() -> Self::Iter {
-        <T as Exhaust>::exhaust().map(Cow::Owned)
+    fn exhaust_factories() -> Self::Iter {
+        <T as Exhaust>::exhaust_factories()
+    }
+
+    fn from_factory(factory: Self::Factory) -> Self {
+        Cow::Owned(T::from_factory(factory))
     }
 }
+// TODO: Also implement for `Cow<'_, str>` and `Cow<'_, [T]>`
 
 // Note: This impl is essentially identical to the one for `HashSet`.
 impl<T: Exhaust + Ord> Exhaust for BTreeSet<T> {
-    type Iter = ExhaustBTreeSet<T>;
-    fn exhaust() -> Self::Iter {
-        ExhaustBTreeSet(itertools::Itertools::powerset(T::exhaust()))
+    type Iter = ExhaustSet<T>;
+    type Factory = Vec<T::Factory>;
+    fn exhaust_factories() -> Self::Iter {
+        ExhaustSet::default()
+    }
+    fn from_factory(factory: Self::Factory) -> Self {
+        factory.into_iter().map(T::from_factory).collect()
     }
 }
 
 // TODO: Instead of delegating to itertools, we should implement our own powerset
 // iterator, to provide the preferred ordering of elements.
-#[derive(Clone)]
-pub struct ExhaustBTreeSet<T: Exhaust>(itertools::Powerset<<T as Exhaust>::Iter>);
+pub struct ExhaustSet<T: Exhaust>(itertools::Powerset<<T as Exhaust>::Iter>);
 
-impl<T: Exhaust + Ord> Iterator for ExhaustBTreeSet<T> {
-    type Item = BTreeSet<T>;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(BTreeSet::from_iter)
+impl<T: Exhaust> Default for ExhaustSet<T> {
+    fn default() -> Self {
+        ExhaustSet(itertools::Itertools::powerset(T::exhaust_factories()))
     }
 }
 
-impl<T: Exhaust> fmt::Debug for ExhaustBTreeSet<T>
+impl<T: Exhaust> Clone for ExhaustSet<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T: Exhaust> Iterator for ExhaustSet<T> {
+    type Item = Vec<T::Factory>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<T: Exhaust> fmt::Debug for ExhaustSet<T>
 where
-    T: fmt::Debug,
+    T::Factory: fmt::Debug,
     T::Iter: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ExhaustBTreeSet").field(&self.0).finish()
+        f.debug_tuple("ExhaustSet").field(&self.0).finish()
     }
 }
 
+pub(crate) type MapFactory<K, V> = Vec<(<K as Exhaust>::Factory, <V as Exhaust>::Factory)>;
+
 impl<K: Exhaust + Ord, V: Exhaust> Exhaust for BTreeMap<K, V> {
-    type Iter = ExhaustBTreeMap<K, V>;
-    fn exhaust() -> Self::Iter {
-        let mut keys: Pei<BTreeSet<K>> = peekable_exhaust::<BTreeSet<K>>();
-        let key_count = keys.peek().map_or(0, BTreeSet::len);
-        ExhaustBTreeMap {
+    type Iter = ExhaustMap<<BTreeSet<K> as Exhaust>::Iter, V>;
+    fn exhaust_factories() -> Self::Iter {
+        ExhaustMap::new(peekable_exhaust::<BTreeSet<K>>())
+    }
+
+    type Factory = MapFactory<K, V>;
+
+    fn from_factory(factory: Self::Factory) -> Self {
+        factory
+            .into_iter()
+            .map(|(k, v)| (K::from_factory(k), V::from_factory(v)))
+            .collect()
+    }
+}
+
+/// Iterator which exhausts map types.
+///
+/// * `KI` is an iterator of key factory *sets* (as `Vec`s) that the map should contain.
+/// * `V` is the type of the map’s values.
+pub struct ExhaustMap<KI, V>
+where
+    KI: Iterator,
+    V: Exhaust,
+{
+    keys: iter::Peekable<KI>,
+    vals: iter::Peekable<itertools::MultiProduct<<V as Exhaust>::Iter>>,
+}
+
+impl<KF, KI, V> ExhaustMap<KI, V>
+where
+    KI: Iterator<Item = Vec<KF>>,
+    V: Exhaust,
+{
+    pub fn new(mut keys: iter::Peekable<KI>) -> Self {
+        let key_count = keys.peek().map_or(0, Vec::len);
+        ExhaustMap {
             keys,
-            vals: itertools::repeat_n(V::exhaust(), key_count)
+            vals: itertools::repeat_n(V::exhaust_factories(), key_count)
                 .multi_cartesian_product()
                 .peekable(),
         }
     }
 }
 
-// Note: This iterator is essentially identical to the one for `HashMap`.
-//
-// TODO: Eliminate the construction of actual BTreeSet keys because it's not beneficial
-pub struct ExhaustBTreeMap<K: Exhaust + Ord, V: Exhaust> {
-    keys: Pei<BTreeSet<K>>,
-    vals: iter::Peekable<itertools::MultiProduct<<V as Exhaust>::Iter>>,
-}
-
-impl<K: Exhaust + Ord, V: Exhaust> Iterator for ExhaustBTreeMap<K, V> {
-    type Item = BTreeMap<K, V>;
+impl<KF, KI, V> Iterator for ExhaustMap<KI, V>
+where
+    KI: Iterator<Item = Vec<KF>>,
+    KF: Clone,
+    V: Exhaust,
+{
+    type Item = Vec<(KF, V::Factory)>;
     fn next(&mut self) -> Option<Self::Item> {
-        let keys: BTreeSet<K> = self.keys.peek()?.clone();
-        let vals: Vec<V> = self.vals.next()?;
+        let keys: Vec<KF> = self.keys.peek()?.clone();
+        let vals: Vec<V::Factory> = self.vals.next()?;
 
         if self.vals.peek().is_none() {
             self.keys.next();
-            let key_count = self.keys.peek().map_or(0, BTreeSet::len);
-            self.vals = itertools::repeat_n(V::exhaust(), key_count)
+            let key_count = self.keys.peek().map_or(0, Vec::len);
+            self.vals = itertools::repeat_n(V::exhaust_factories(), key_count)
                 .multi_cartesian_product()
                 .peekable();
         }
@@ -100,9 +151,9 @@ impl<K: Exhaust + Ord, V: Exhaust> Iterator for ExhaustBTreeMap<K, V> {
     }
 }
 
-impl<K, V> Clone for ExhaustBTreeMap<K, V>
+impl<KI, V> Clone for ExhaustMap<KI, V>
 where
-    K: Exhaust + Ord,
+    KI: Iterator<Item: Clone> + Clone,
     V: Exhaust,
 {
     fn clone(&self) -> Self {
@@ -113,16 +164,13 @@ where
     }
 }
 
-#[allow(clippy::type_repetition_in_bounds)] // TODO: report false positive
-impl<K, V> fmt::Debug for ExhaustBTreeMap<K, V>
+impl<KI, V> fmt::Debug for ExhaustMap<KI, V>
 where
-    K: fmt::Debug + Exhaust + Ord,
-    V: fmt::Debug + Exhaust,
-    K::Iter: fmt::Debug,
-    V::Iter: fmt::Debug,
+    KI: fmt::Debug + Iterator<Item: fmt::Debug>,
+    V: fmt::Debug + Exhaust<Iter: fmt::Debug, Factory: fmt::Debug>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ExhaustBTreeMap")
+        f.debug_struct("ExhaustMap")
             .field("keys", &self.keys)
             .field("vals", &self.vals)
             .finish()
