@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased 0.2.0 (date TBD)
+
+### Changed
+
+* The minimum supported Rust version is now 1.80.
+
+### Removed
+
+* `<Option<T> as Exhaust>::Iter` no longer implements `DoubleEndedIterator`.
+  This might be added back in the future.
+* Removed `exhaust::ExhaustArray` from the crate root.
+* Removed the public module `exhaust::impls`.
+  The iterators can only be accessed through the trait implementation’s associated types.
+
 ## 0.1.2 (2024-09-18)
 
 There are no changes to functionality in this release.
