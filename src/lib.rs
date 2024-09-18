@@ -39,9 +39,6 @@ pub(crate) mod patterns;
 
 mod impls;
 
-mod convenience;
-pub use convenience::*;
-
 pub mod iteration;
 
 // -------------------------------------------------------------------------------------------------
