@@ -1,7 +1,7 @@
 #![allow(clippy::wildcard_imports)]
 
-use core::iter;
 use core::pin::Pin;
+use core::{fmt, iter};
 
 use crate::iteration::{peekable_exhaust, FlatZipMap};
 use crate::patterns::{factory_is_self, impl_newtype_generic, impl_singleton};
@@ -59,7 +59,7 @@ mod io {
     use super::*;
     use std::io;
 
-    impl<T: Exhaust + AsRef<[u8]> + Clone> Exhaust for io::Cursor<T> {
+    impl<T: Exhaust + AsRef<[u8]> + Clone + fmt::Debug> Exhaust for io::Cursor<T> {
         type Iter = FlatZipMap<crate::Iter<T>, std::ops::RangeInclusive<u64>, io::Cursor<T>>;
         /// Returns each combination of a buffer state and a cursor position, except for those
         /// where the position is beyond the end of the buffer.

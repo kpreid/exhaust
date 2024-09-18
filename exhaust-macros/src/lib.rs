@@ -183,7 +183,7 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
         &ConstructorSyntax::Tuple,
     );
 
-    let iterator_impls = ctx.impl_iterator_traits(
+    let iterator_impls = ctx.impl_iterator_and_factory_traits(
         quote! {
             match self {
                 Self { #field_pats } => {
@@ -289,7 +289,7 @@ fn exhaust_iter_struct(
     // Note: The iterator must have trait bounds because its fields, being of type
     // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
 
-    let impls = ctx.impl_iterator_traits(
+    let impls = ctx.impl_iterator_and_factory_traits(
         quote! {
             match self {
                 Self { #field_pats } => {
@@ -565,7 +565,7 @@ fn exhaust_iter_enum(
     let (impl_generics, ty_generics, augmented_where_predicates) =
         ctx.generics_with_bounds(syn::parse_quote! {});
 
-    let impls = ctx.impl_iterator_traits(
+    let impls = ctx.impl_iterator_and_factory_traits(
         quote! {
             match &mut self.0 {
                 #( #variant_next_arms , )*

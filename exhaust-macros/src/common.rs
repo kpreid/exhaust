@@ -91,8 +91,8 @@ impl ExhaustContext {
         }
     }
 
-    /// Generate the common parts of the Iterator implementation.
-    pub fn impl_iterator_traits(
+    /// Generate the common parts of the Iterator and factory implementation.
+    pub fn impl_iterator_and_factory_traits(
         &self,
         iterator_next_body: TokenStream2,
         iterator_default_body: TokenStream2,
@@ -102,9 +102,29 @@ impl ExhaustContext {
         let iterator_type_name = &self.iterator_type_name;
         let (impl_generics, ty_generics, augmented_where_predicates) =
             self.generics_with_bounds(syn::parse_quote! {});
-        let (_, _, debug_where_predicates) =
-            self.generics_with_bounds(syn::parse_quote! { ::core::fmt::Debug });
         let item_type_inst = self.item_type.parameterized(&self.generics);
+
+        let factory_impls = match &self.factory_type {
+            // Don't try to implement for a tuple type.
+            ConstructorSyntax::Tuple => quote! {},
+
+            ConstructorSyntax::Braced(factory_outer_type_name) => quote! {
+                impl #impl_generics ::core::fmt::Debug for #factory_outer_type_name #ty_generics
+                where #augmented_where_predicates {
+                    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                        // TODO: Print the contents of the factory.
+                        // We know this is possible because the `Exhaust` trait requires
+                        // `Self::Factory: Debug`.
+                        //
+                        // Ideally we would just print `T::from_factory(self)`, but we don't know
+                        // whether that implements `Debug` or not.
+                        // (But a macro helper attribute could let the user tell us that.)
+                        f.debug_struct(stringify!(#factory_outer_type_name))
+                            .finish_non_exhaustive()
+                    }
+                }
+            },
+        };
 
         quote! {
             impl #impl_generics ::core::iter::Iterator for #iterator_type_name #ty_generics
@@ -126,12 +146,13 @@ impl ExhaustContext {
                 }
             }
 
-            // A manual impl of Debug is required to provide the right bounds on the generics,
-            // and given that we're implementing anyway, we might as well provide a cleaner format.
+            // A manual impl of Debug is required to provide the right bounds on the generics.
             impl #impl_generics ::core::fmt::Debug for #iterator_type_name #ty_generics
-            where #debug_where_predicates {
+            where #augmented_where_predicates {
                 fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                    // TODO: print state
+                    // TODO: Print the current enum state.
+                    // We know this is possible because the `Exhaust` trait requires
+                    // `Self::Iter: Debug`.
                     f.debug_struct(stringify!(#iterator_type_name))
                         .finish_non_exhaustive()
                 }
@@ -144,6 +165,8 @@ impl ExhaustContext {
                     #iterator_clone_body
                 }
             }
+
+            #factory_impls
         }
     }
 }
