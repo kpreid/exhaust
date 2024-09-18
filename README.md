@@ -7,11 +7,6 @@ Exhaustive iteration may be useful for exhaustive testing, working with enums, a
 
 `exhaust` is `no_std` compatible with default features disabled. The `alloc` and `std` features add implementations for the corresponding standard library crates.
 
-Project status and stability
-----------------------------
-
-`exhaust` is currently in an early stage of development, and has been published for the sake of receiving feedback. I intend to quickly bring it to feature-completeness within its narrow scope, making it a library that can be relied upon by Rust programmers.
-
 License
 -------
 

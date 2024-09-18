@@ -2,6 +2,13 @@
 
 //! This crate provides the [`Exhaust`] trait and derive macro, which allow iterating over
 //! all values of a given type.
+//!
+//! # Package features
+//!
+//! All features are enabled by default.
+//! If you set `default-features = false`, `exhaust` becomes `no_std` compatible.
+//! The `alloc` and `std` features add `Exhaust` implementations for
+//! the corresponding standard library crates.
 
 #![forbid(rust_2018_idioms)]
 #![forbid(unsafe_code)]
