@@ -167,6 +167,9 @@ jobs:
           fetch-depth: 0
 
       - uses: Swatinem/rust-cache@v2.7.3
+        with:
+          # Job's likely to fail and yet have useful cache material.
+          cache-on-failure: true
 
       - run: cargo install --locked cargo-mutants@24.7.1
 
