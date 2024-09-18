@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased 0.1.2 (date TBD)
+## 0.1.2 (2024-09-18)
 
 There are no changes to functionality in this release.
 
