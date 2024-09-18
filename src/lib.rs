@@ -177,10 +177,6 @@ pub mod iteration;
 /// * Pointers, for the same reason as references (and we could generate invalid pointers,
 ///   but that would be almost certainly pointless).
 /// * [`u64`], [`i64`], and [`f64`], because they are too large to feasibly exhaust.
-/// * Types which do not implement [`Clone`]:
-///
-///   * [`core::cell::UnsafeCell`]
-///   * [`std::sync::Mutex`] and `RwLock`
 /// * Containers that permit duplicate items, and can therefore be unboundedly large:
 ///   * [`alloc::vec::Vec`]
 ///   * [`alloc::collections::VecDeque`]
@@ -194,7 +190,6 @@ pub mod iteration;
 /// * [`core::ops::Range*`](core::ops), because it is ambiguous whether inverted (start > end)
 ///   ranges should be generated.
 /// * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
-/// * [`std::io::Stdout`] and other types whose sole use is in performing IO.
 pub trait Exhaust: Sized {
     /// Iterator type returned by [`Self::exhaust_factories()`].
     /// See the trait documentation for what properties this iterator should have.

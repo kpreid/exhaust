@@ -34,6 +34,22 @@ Existing implementations may be migrated by adding `type Factory = Self`
 and renaming `fn exhaust()` to `fn exhaust_factories()`.
 However, it may be possible to simplify the iterator by moving some code into `fn from_factory()`.
 
+### Added
+
+* `impl Exhaust for ...`
+    * `core::cell::UnsafeCell`
+    * `core::sync::AtomicBool`
+    * `core::sync::Atomic{U,I}{8,16,32}`
+    * `std::io::BufReader`
+    * `std::io::BufWriter`
+    * `std::io::Chain`
+    * `std::io::LineWriter`
+    * `std::io::Repeat`
+    * `std::io::Sink`
+    * `std::io::Stderr`
+    * `std::io::Stdin`
+    * `std::io::Stdout`
+
 ### Changed
 
 * The minimum supported Rust version is now 1.80.

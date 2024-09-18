@@ -1,10 +1,7 @@
-use core::hash::{BuildHasher, Hash};
+#![allow(clippy::wildcard_imports)]
+
 use core::iter;
 use core::pin::Pin;
-
-use std::collections::{HashMap, HashSet};
-use std::sync;
-use std::vec::Vec;
 
 use crate::iteration::{peekable_exhaust, FlatZipMap};
 use crate::patterns::{factory_is_self, impl_newtype_generic, impl_singleton};
@@ -12,107 +9,170 @@ use crate::Exhaust;
 
 use super::alloc_impls::{ExhaustMap, ExhaustSet, MapFactory};
 
-// Note: This impl is essentially identical to the one for `BTreeSet`.
-impl<T, S> Exhaust for HashSet<T, S>
-where
-    T: Exhaust + Eq + Hash,
-    S: Clone + Default + BuildHasher,
-{
-    type Iter = ExhaustSet<T>;
-    type Factory = Vec<T::Factory>;
-    fn exhaust_factories() -> Self::Iter {
-        ExhaustSet::default()
+mod collections {
+    use super::*;
+    use core::hash::{BuildHasher, Hash};
+    use std::collections::{HashMap, HashSet};
+    use std::vec::Vec;
+
+    // Note: This impl is essentially identical to the one for `BTreeSet`.
+    impl<T, S> Exhaust for HashSet<T, S>
+    where
+        T: Exhaust + Eq + Hash,
+        S: Clone + Default + BuildHasher,
+    {
+        type Iter = ExhaustSet<T>;
+        type Factory = Vec<T::Factory>;
+        fn exhaust_factories() -> Self::Iter {
+            ExhaustSet::default()
+        }
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            factory.into_iter().map(T::from_factory).collect()
+        }
     }
 
-    fn from_factory(factory: Self::Factory) -> Self {
-        factory.into_iter().map(T::from_factory).collect()
+    impl<K, V, S> Exhaust for HashMap<K, V, S>
+    where
+        K: Exhaust + Eq + Hash,
+        V: Exhaust,
+        S: Clone + Default + BuildHasher,
+    {
+        type Iter = ExhaustMap<<HashSet<K, S> as Exhaust>::Iter, V>;
+
+        fn exhaust_factories() -> Self::Iter {
+            ExhaustMap::new(peekable_exhaust::<HashSet<K, S>>())
+        }
+
+        type Factory = MapFactory<K, V>;
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            factory
+                .into_iter()
+                .map(|(k, v)| (K::from_factory(k), V::from_factory(v)))
+                .collect()
+        }
     }
 }
 
-/// **Caution:** The order in which this iterator produces elements is currently
-/// nondeterministic if the hasher `S` is.
-/// (This might be improved in the future.)
-// TODO: I think the above note is obsolete.
-impl<K, V, S> Exhaust for HashMap<K, V, S>
-where
-    K: Exhaust + Eq + Hash,
-    V: Exhaust,
-    S: Clone + Default + BuildHasher,
-{
-    type Iter = ExhaustMap<<HashSet<K, S> as Exhaust>::Iter, V>;
+mod io {
+    use super::*;
+    use std::io;
 
-    fn exhaust_factories() -> Self::Iter {
-        ExhaustMap::new(peekable_exhaust::<HashSet<K, S>>())
+    impl<T: Exhaust + AsRef<[u8]> + Clone> Exhaust for io::Cursor<T> {
+        type Iter = FlatZipMap<crate::Produce<T>, std::ops::RangeInclusive<u64>, io::Cursor<T>>;
+        /// Returns each combination of a buffer state and a cursor position, except for those
+        /// where the position is beyond the end of the buffer.
+        fn exhaust_factories() -> Self::Iter {
+            FlatZipMap::new(
+                T::exhaust(),
+                |buf| 0..=(buf.as_ref().len() as u64),
+                |buf, pos| {
+                    let mut cursor = io::Cursor::new(buf);
+                    cursor.set_position(pos);
+                    cursor
+                },
+            )
+        }
+        factory_is_self!();
     }
 
-    type Factory = MapFactory<K, V>;
+    impl<T: io::Read + Exhaust> Exhaust for io::BufReader<T> {
+        type Iter = T::Iter;
+        type Factory = T::Factory;
 
-    fn from_factory(factory: Self::Factory) -> Self {
-        factory
-            .into_iter()
-            .map(|(k, v)| (K::from_factory(k), V::from_factory(v)))
-            .collect()
+        fn exhaust_factories() -> Self::Iter {
+            T::exhaust_factories()
+        }
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            io::BufReader::new(T::from_factory(factory))
+        }
     }
+
+    impl<T: io::Write + Exhaust> Exhaust for io::BufWriter<T> {
+        type Iter = T::Iter;
+        type Factory = T::Factory;
+
+        fn exhaust_factories() -> Self::Iter {
+            T::exhaust_factories()
+        }
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            io::BufWriter::new(T::from_factory(factory))
+        }
+    }
+
+    impl<T: io::Read + Exhaust, U: io::Read + Exhaust> Exhaust for io::Chain<T, U> {
+        type Iter = <(T, U) as Exhaust>::Iter;
+        type Factory = <(T, U) as Exhaust>::Factory;
+
+        fn exhaust_factories() -> Self::Iter {
+            <(T, U)>::exhaust_factories()
+        }
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            let (first, second) = <(T, U)>::from_factory(factory);
+            first.chain(second)
+        }
+    }
+
+    impl Exhaust for io::Empty {
+        type Iter = iter::Once<io::Empty>;
+        fn exhaust_factories() -> Self::Iter {
+            iter::once(io::empty())
+        }
+        factory_is_self!();
+    }
+
+    impl<T: io::Write + Exhaust> Exhaust for io::LineWriter<T> {
+        type Iter = T::Iter;
+        type Factory = T::Factory;
+
+        fn exhaust_factories() -> Self::Iter {
+            T::exhaust_factories()
+        }
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            io::LineWriter::new(T::from_factory(factory))
+        }
+    }
+
+    impl Exhaust for io::Repeat {
+        type Iter = <u8 as Exhaust>::Iter;
+        type Factory = u8;
+
+        fn exhaust_factories() -> Self::Iter {
+            u8::exhaust_factories()
+        }
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            io::repeat(factory)
+        }
+    }
+
+    impl_singleton!([], io::Sink);
+    impl_singleton!([], io::Stderr, io::stderr());
+    impl_singleton!([], io::Stdin, io::stdin());
+    impl_singleton!([], io::Stdout, io::stdout());
+
+    // no impl for io::Take because it takes a 64-bit parameter
+    // no impl for io::Error[Kind] because it is #[non_exhaustive]
+    // no impl for io::SeekFrom because it takes a 64-bit parameter
 }
 
-impl<T: Exhaust + AsRef<[u8]> + Clone> Exhaust for std::io::Cursor<T> {
-    type Iter = FlatZipMap<crate::Produce<T>, std::ops::RangeInclusive<u64>, std::io::Cursor<T>>;
-    /// Returns each combination of a buffer state and a cursor position, except for those
-    /// where the position is beyond the end of the buffer.
-    fn exhaust_factories() -> Self::Iter {
-        FlatZipMap::new(
-            T::exhaust(),
-            |buf| 0..=(buf.as_ref().len() as u64),
-            |buf, pos| {
-                let mut cursor = std::io::Cursor::new(buf);
-                cursor.set_position(pos);
-                cursor
-            },
-        )
-    }
-    factory_is_self!();
+mod sync {
+    use super::*;
+    use std::sync;
+
+    impl_newtype_generic!(T: [], sync::Arc<T>, sync::Arc::new);
+    impl_newtype_generic!(T: [], Pin<sync::Arc<T>>, sync::Arc::pin);
+
+    impl_newtype_generic!(T: [], sync::Mutex<T>, sync::Mutex::new);
+    impl_newtype_generic!(T: [], sync::RwLock<T>, sync::RwLock::new);
+
+    // TODO: Add `OnceLock` when we bump MSRV.
+    //
+    // sync::Condvar is stateful in a way we cannot handle.
+    // sync::Once could be implemented, but is dubious.
 }
-
-// TODO: implement this after we no longer have a mandatory `Clone` bound for items
-// impl<T: io::Read + Exhaust> Exhaust for io::BufReader<T> {
-//     type Iter = iter::Map<<T as Exhaust>::Iter, fn(T) -> io::BufReader<T>>;
-//
-//     fn exhaust() -> Self::Iter {
-//         T::exhaust().map(io::BufReader::new)
-//     }
-// }
-//
-// impl<T: io::Write + Exhaust> Exhaust for io::BufWriter<T> {
-//     type Iter = iter::Map<<T as Exhaust>::Iter, fn(T) -> io::BufWriter<T>>;
-//
-//     fn exhaust() -> Self::Iter {
-//         T::exhaust().map(io::BufWriter::new)
-//     }
-// }
-
-impl Exhaust for std::io::Empty {
-    type Iter = iter::Once<std::io::Empty>;
-    fn exhaust_factories() -> Self::Iter {
-        iter::once(std::io::empty())
-    }
-    factory_is_self!();
-}
-
-// TODO: implement this after we no longer have a mandatory `Clone` bound for items
-// impl Exhaust for std::io::Repeat {
-//     type Iter = iter::Map<<u8 as Exhaust>::Iter, fn(u8) -> std::io::Repeat>;
-//     fn exhaust() -> Self::Iter {
-//         todo!()
-//     }
-// }
-
-impl_singleton!([], std::io::Sink);
-
-impl_newtype_generic!(T: [], sync::Arc<T>, sync::Arc::new);
-impl_newtype_generic!(T: [], Pin<sync::Arc<T>>, sync::Arc::pin);
-
-// Mutex and RwLock are not Clone. This is evidence that we shouldn't have a Clone bound.
-// impl_newtype_generic!(T: [], sync::Mutex<T>, sync::Mutex::new);
-// impl_newtype_generic!(T: [], sync::RwLock<T>, sync::RwLock::new);
-
-// Cannot implement Exhaust for sync::Once because it is not Clone.
