@@ -34,13 +34,14 @@ required-features = ["alloc"]
 
 [dependencies]
 exhaust-macros = { version = "0.2.0", path = "exhaust-macros" }
-# itertools is used for its powerset iterator, which is only available with alloc,
-# but which we only use for exhausting set and map types.
-#
+# itertools is used for its powerset iterator, which is only available with alloc
+itertools = { workspace = true, optional = true }
+paste = "1.0.5"
+
+[workspace.dependencies]
 # Note!!! It would be nice if we could use a wide range of itertools versions,
 # but there is a bug fixed in 0.13.0, <https://github.com/rust-itertools/itertools/issues/337>,
 # which affects `ExhaustHashMap` and `ExhaustBTreeMap`, so it actually matters that we have 0.13.0
 # here. But when 0.14.0 is released, consider changing this to `>=0.13.0, <0.15.0` so that we can
 # allow dependents to stay off the upgrade treadmill without duplicating versions.
-itertools = { version = "0.13.0", optional = true, default-features = false, features = ["use_alloc"] }
-paste = "1.0.5"
+itertools = { version = "0.13.0", default-features = false, features = ["use_alloc"] }
