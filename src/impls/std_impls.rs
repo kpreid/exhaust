@@ -60,7 +60,7 @@ mod io {
     use std::io;
 
     impl<T: Exhaust + AsRef<[u8]> + Clone> Exhaust for io::Cursor<T> {
-        type Iter = FlatZipMap<crate::Produce<T>, std::ops::RangeInclusive<u64>, io::Cursor<T>>;
+        type Iter = FlatZipMap<crate::Iter<T>, std::ops::RangeInclusive<u64>, io::Cursor<T>>;
         /// Returns each combination of a buffer state and a cursor position, except for those
         /// where the position is beyond the end of the buffer.
         fn exhaust_factories() -> Self::Iter {

@@ -30,8 +30,8 @@ extern crate self as exhaust;
 
 // -------------------------------------------------------------------------------------------------
 
-#[cfg(doc)]
-use core::iter::{DoubleEndedIterator, ExactSizeIterator, FusedIterator};
+use core::fmt;
+use core::iter::FusedIterator;
 
 // -------------------------------------------------------------------------------------------------
 
@@ -229,8 +229,9 @@ pub trait Exhaust: Sized {
     ///
     /// This function is equivalent to `Self::exhaust_factories().map(Self::from_factory)`.
     /// Implementors should not override it.
-    fn exhaust() -> Produce<Self> {
-        Self::exhaust_factories().map(Self::from_factory)
+    #[must_use]
+    fn exhaust() -> Iter<Self> {
+        Iter::default()
     }
 
     /// Returns an iterator over [factories](Self::Factory) for all values of this type.
@@ -239,6 +240,7 @@ pub trait Exhaust: Sized {
     /// [`Exhaust::Iter`] iterator for a type that contains this type.
     ///
     /// See the trait documentation for what properties this iterator should have.
+    #[must_use]
     fn exhaust_factories() -> Self::Iter;
 
     /// Construct a concrete value of this type from a `Self::Factory` value produced by
@@ -254,6 +256,7 @@ pub trait Exhaust: Sized {
     /// given a value that [`Self::Iter`] is unable to produce.
     ///
     /// </div>
+    #[must_use]
     fn from_factory(factory: Self::Factory) -> Self;
 }
 
@@ -270,5 +273,77 @@ pub trait Exhaust: Sized {
 /// [`Iterator::size_hint()`].
 pub use exhaust_macros::Exhaust;
 
-type Produce<T> =
-    core::iter::Map<<T as Exhaust>::Iter, fn(<<T as Exhaust>::Iter as Iterator>::Item) -> T>;
+// -------------------------------------------------------------------------------------------------
+
+/// Iterator over all values of any type that implements [`Exhaust`].
+///
+/// It may be obtained with [`T::exhaust()`](Exhaust::exhaust) or [`Default::default()`].
+pub struct Iter<T: Exhaust>(<T as Exhaust>::Iter);
+
+impl<T: Exhaust> Default for Iter<T> {
+    #[inline]
+    fn default() -> Self {
+        Self(T::exhaust_factories())
+    }
+}
+
+impl<T: Exhaust> Iterator for Iter<T> {
+    type Item = T;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(T::from_factory)
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.fold(init, |state, item_factory| {
+            f(state, T::from_factory(item_factory))
+        })
+    }
+}
+
+impl<T: Exhaust<Iter: DoubleEndedIterator>> DoubleEndedIterator for Iter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back().map(T::from_factory)
+    }
+
+    fn rfold<B, F>(self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.rfold(init, |state, item_factory| {
+            f(state, T::from_factory(item_factory))
+        })
+    }
+}
+
+impl<T: Exhaust> FusedIterator for Iter<T> {
+    // Note: This is only correct because of the `FusedIterator` bound on `Exhaust::Iter`.
+    // Otherwise we would have to add a `T::Iter: FusedIterator` bound here too.
+}
+
+impl<T: Exhaust<Iter: ExactSizeIterator>> ExactSizeIterator for Iter<T> {}
+
+impl<T: Exhaust> Clone for Iter<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<T: Exhaust<Iter: Copy>> Copy for Iter<T> {}
+
+impl<T: Exhaust<Iter: fmt::Debug>> fmt::Debug for Iter<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("exhaust::Iter").field(&self.0).finish()
+    }
+}
