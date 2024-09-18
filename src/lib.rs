@@ -37,7 +37,7 @@ use core::iter::{DoubleEndedIterator, ExactSizeIterator, FusedIterator};
 
 pub(crate) mod patterns;
 
-pub mod impls;
+mod impls;
 
 mod convenience;
 pub use convenience::*;

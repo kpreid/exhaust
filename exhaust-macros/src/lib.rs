@@ -162,7 +162,7 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
         },
         item_type: ConstructorSyntax::Tuple,
         factory_type: ConstructorSyntax::Tuple,
-        iterator_type_name: Ident::new(&format!("ExhaustTuple{}", size), Span::mixed_site()),
+        iterator_type_name: Ident::new(&format!("ExhaustTuple{}Iter", size), Span::mixed_site()),
         exhaust_crate_path: parse_quote! { crate },
     };
 
@@ -196,32 +196,34 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
     let iterator_doc = ctx.iterator_doc();
 
     Ok(quote! {
-        impl<#( #value_type_vars , )*> crate::Exhaust for ( #( #value_type_vars , )* )
-        where #( #value_type_vars : crate::Exhaust, )*
-        {
-            type Iter = #iterator_type_name <#( #value_type_vars , )*>;
-            type Factory = (#(
-                <#value_type_vars as crate::Exhaust>::Factory,
-            )*);
-            fn exhaust_factories() -> Self::Iter {
-                ::core::default::Default::default()
+        const _: () = {
+            impl<#( #value_type_vars , )*> crate::Exhaust for ( #( #value_type_vars , )* )
+            where #( #value_type_vars : crate::Exhaust, )*
+            {
+                type Iter = #iterator_type_name <#( #value_type_vars , )*>;
+                type Factory = (#(
+                    <#value_type_vars as crate::Exhaust>::Factory,
+                )*);
+                fn exhaust_factories() -> Self::Iter {
+                    ::core::default::Default::default()
+                }
+                fn from_factory(factory: Self::Factory) -> Self {
+                    let (#( #factory_value_vars , )*) = factory;
+                    (#(
+                        <#value_type_vars as crate::Exhaust>::from_factory(#factory_value_vars),
+                    )*)
+                }
             }
-            fn from_factory(factory: Self::Factory) -> Self {
-                let (#( #factory_value_vars , )*) = factory;
-                (#(
-                    <#value_type_vars as crate::Exhaust>::from_factory(#factory_value_vars),
-                )*)
+
+            #[doc = #iterator_doc]
+            pub struct #iterator_type_name <#( #value_type_vars , )*>
+            where #( #value_type_vars : crate::Exhaust, )*
+            {
+                #state_field_decls
             }
-        }
 
-        #[doc = #iterator_doc]
-        pub struct #iterator_type_name <#( #value_type_vars , )*>
-        where #( #value_type_vars : crate::Exhaust, )*
-        {
-            #state_field_decls
-        }
-
-        #iterator_impls
+            #iterator_impls
+        };
     })
 }
 
