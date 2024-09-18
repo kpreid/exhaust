@@ -84,6 +84,7 @@ impl<T: Exhaust, const N: usize> Clone for ExhaustArray<T, N> {
 
 impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
     type Item = [T::Factory; N];
+
     fn next(&mut self) -> Option<Self::Item> {
         if N == 0 {
             return if self.done_zero {
@@ -133,3 +134,5 @@ impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
         Some(item)
     }
 }
+
+impl<T: Exhaust, const N: usize> iter::FusedIterator for ExhaustArray<T, N> {}

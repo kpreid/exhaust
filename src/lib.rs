@@ -162,6 +162,7 @@ pub mod iteration;
 ///         }
 ///     }
 /// }
+/// impl std::iter::FusedIterator for ExhaustAsciiLetter {}
 ///
 /// assert_eq!(
 ///     AsciiLetter::exhaust().map(|l| l.0).collect::<String>(),
@@ -214,7 +215,7 @@ pub trait Exhaust: Sized {
     /// [`ExactSizeIterator`]); it should be treated as an implementation detail.
     ///
     /// </div>
-    type Iter: Iterator<Item = Self::Factory> + Clone;
+    type Iter: core::iter::FusedIterator<Item = Self::Factory> + Clone;
 
     /// Data which can be used to construct `Self`.
     ///

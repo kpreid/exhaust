@@ -3,8 +3,8 @@
 //! These functions were found to be repeatedly useful within the built-in implementations,
 //! and are provided publicly in the expectation that they will have more uses.
 
-use core::fmt;
 use core::iter::Peekable;
+use core::{fmt, iter};
 
 use crate::Exhaust;
 
@@ -114,4 +114,12 @@ where
             }
         }
     }
+}
+
+impl<I, J, O> iter::FusedIterator for FlatZipMap<I, J, O>
+where
+    I: Iterator,
+    I::Item: Clone,
+    J: Iterator,
+{
 }

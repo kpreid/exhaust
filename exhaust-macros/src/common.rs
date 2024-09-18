@@ -115,6 +115,9 @@ impl ExhaustContext {
                 }
             }
 
+            impl #impl_generics ::core::iter::FusedIterator for #iterator_type_name #ty_generics
+            where #augmented_where_predicates {}
+
             impl #impl_generics ::core::default::Default for #iterator_type_name #ty_generics
             where #augmented_where_predicates {
                 fn default() -> Self {
