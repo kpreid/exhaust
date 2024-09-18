@@ -181,10 +181,6 @@ pub mod iteration;
 ///
 ///   * [`core::cell::UnsafeCell`]
 ///   * [`std::sync::Mutex`] and `RwLock`
-///   * [`core::sync::atomic::Atomic*`](core::sync::atomic)
-///
-///   A future version of the library might relax the [`Clone`] bound,
-///   but this is currently impossible.
 /// * Containers that permit duplicate items, and can therefore be unboundedly large:
 ///   * [`alloc::vec::Vec`]
 ///   * [`alloc::collections::VecDeque`]
