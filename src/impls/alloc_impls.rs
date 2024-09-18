@@ -1,3 +1,4 @@
+use core::iter::FusedIterator;
 use core::pin::Pin;
 use core::{fmt, iter};
 
@@ -70,6 +71,7 @@ impl<T: Exhaust> Iterator for ExhaustSet<T> {
         self.0.next()
     }
 }
+impl<T: Exhaust> FusedIterator for ExhaustSet<T> {}
 
 impl<T: Exhaust> fmt::Debug for ExhaustSet<T>
 where
@@ -149,6 +151,13 @@ where
 
         Some(keys.into_iter().zip_eq(vals).collect())
     }
+}
+impl<KF, KI, V> FusedIterator for ExhaustMap<KI, V>
+where
+    KI: Iterator<Item = Vec<KF>>,
+    KF: Clone,
+    V: Exhaust,
+{
 }
 
 impl<KI, V> Clone for ExhaustMap<KI, V>

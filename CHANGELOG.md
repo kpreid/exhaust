@@ -39,6 +39,7 @@ However, it may be possible to simplify the iterator by moving some code into `f
 * The minimum supported Rust version is now 1.80.
 * **Breaking:** The derive macro `derive(Exhaust)` now hides its generated items.
   They can only be accessed through the trait implementation’s associated types.
+* **Breaking:** `Exhaust::Iter` types now must implement `FusedIterator`.
 
 ### Removed
 

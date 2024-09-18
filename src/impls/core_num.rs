@@ -31,6 +31,7 @@ macro_rules! impl_nonzero {
                     self.0.next()
                 }
             }
+            impl iter::FusedIterator for [< Exhaust $nzt >] {}
         }
     }
 }
