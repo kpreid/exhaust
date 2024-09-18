@@ -51,6 +51,9 @@ However, it may be possible to simplify the iterator by moving some code into `f
     * `std::io::Stdin`
     * `std::io::Stdout`
 
+* `exhaust::Iter<T>` is a single generic iterator for all `T: Exhaust`.
+  It is now the type returned by `Exhaust::exhaust()`.
+
 ### Changed
 
 * The minimum supported Rust version is now 1.80.
