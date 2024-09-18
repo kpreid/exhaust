@@ -2,8 +2,6 @@
 //! space can be small. This module tests all such impls, since they are similar even
 //! when the collections don't live in the same crate.
 
-#![cfg(feature = "alloc")]
-
 extern crate alloc;
 use alloc::collections::{BTreeMap, BTreeSet};
 

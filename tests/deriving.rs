@@ -5,6 +5,8 @@
 extern crate exhaust;
 extern crate std;
 
+mod helper;
+
 use std::prelude::rust_2021 as p;
 
 fn c<T: std::fmt::Debug + exhaust::Exhaust>() -> std::vec::Vec<T>
@@ -13,6 +15,7 @@ where
 {
     let mut iterator = T::exhaust();
     let mut result = std::vec::Vec::new();
+    let size_hint = p::Iterator::size_hint(&iterator);
     std::println!("Initial iterator state {:?}", iterator);
     while let p::Some(item) = p::Iterator::next(&mut iterator) {
         std::println!("{}. {:?} from {:?}", result.len(), item, iterator);
@@ -26,6 +29,9 @@ where
         result.push(item);
     }
     std::println!("Final iterator state {:?}", iterator);
+
+    helper::assert_size_hint_valid(size_hint, result.len());
+
     result
 }
 
