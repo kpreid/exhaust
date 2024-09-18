@@ -19,7 +19,7 @@ mod collections {
     impl<T, S> Exhaust for HashSet<T, S>
     where
         T: Exhaust + Eq + Hash,
-        S: Clone + Default + BuildHasher,
+        S: Default + BuildHasher,
     {
         type Iter = ExhaustSet<T>;
         type Factory = Vec<T::Factory>;
@@ -36,7 +36,7 @@ mod collections {
     where
         K: Exhaust + Eq + Hash,
         V: Exhaust,
-        S: Clone + Default + BuildHasher,
+        S: Default + BuildHasher,
     {
         type Iter = ExhaustMap<<HashSet<K, S> as Exhaust>::Iter, V>;
 

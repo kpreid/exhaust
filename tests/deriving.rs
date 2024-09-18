@@ -35,7 +35,7 @@ where
     result
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 struct UnitStruct;
 
 #[test]
@@ -43,7 +43,7 @@ fn struct_unit() {
     std::assert_eq!(c::<UnitStruct>(), std::vec![UnitStruct]);
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 struct SimpleStruct {
     // At least three fields are needed to check the carry logic.
     a: bool,
@@ -100,7 +100,7 @@ fn struct_simple() {
     )
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 struct GenericStruct<T> {
     a: T,
     b: T,
@@ -121,7 +121,7 @@ fn struct_generic() {
     )
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum EmptyEnum {}
 
 #[test]
@@ -129,7 +129,7 @@ fn enum_empty() {
     std::assert_eq!(c::<EmptyEnum>(), std::vec![]);
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum OneValueEnum {
     Foo,
 }
@@ -139,7 +139,7 @@ fn enum_one_value() {
     std::assert_eq!(c::<OneValueEnum>(), std::vec![OneValueEnum::Foo]);
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum FieldlessEnum {
     Foo,
     Bar,
@@ -154,7 +154,7 @@ fn enum_fieldless_multi() {
     );
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum EnumWithFields {
     Foo(bool, bool),
     Bar(bool),
@@ -175,7 +175,7 @@ fn enum_fields() {
     );
 }
 
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum EnumWithGeneric<T> {
     N,
     S(T),
@@ -194,13 +194,13 @@ fn enum_generic() {
 }
 
 mod module {
-    #[derive(Clone, ::exhaust::Exhaust)]
+    #[derive(::exhaust::Exhaust)]
     enum EnumInsideMod<T> {
         N,
         S(T),
     }
 
-    #[derive(Clone, Debug, PartialEq, ::exhaust::Exhaust)]
+    #[derive(Debug, PartialEq, ::exhaust::Exhaust)]
     struct StructInsideMod(bool);
 }
 
@@ -208,13 +208,13 @@ mod module {
 /// Exercise using the derive inside one.
 #[test]
 fn function_containing_derive() {
-    #[derive(Clone, exhaust::Exhaust)]
+    #[derive(exhaust::Exhaust)]
     enum EnumInsideFn<T> {
         N,
         S(T),
     }
 
-    #[derive(Clone, Debug, PartialEq, exhaust::Exhaust)]
+    #[derive(Debug, PartialEq, exhaust::Exhaust)]
     struct StructInsideFn(bool);
 
     std::assert_eq!(
@@ -224,7 +224,7 @@ fn function_containing_derive() {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, exhaust::Exhaust)]
+#[derive(exhaust::Exhaust)]
 enum VariableNameHygieneTest {
     // These field and variant names shouldn't conflict with internal variables in the generated impl.
     Foo { has_next: (), item: (), f0: () },
