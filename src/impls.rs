@@ -16,6 +16,7 @@ mod core_marker;
 mod core_num;
 pub use core_num::*;
 mod core_option;
+mod core_sync;
 //  core::pin::Pin is handled separately for each pinnable smart pointer.
 mod core_primitive;
 pub use core_primitive::*;
