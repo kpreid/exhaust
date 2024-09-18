@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## Unreleased 0.1.2 (date TBD)
+
+There are no changes to functionality in this release.
+
+* Improved documentation.
+* Depends on `itertools` version 0.13 instead of 0.10.
+* Added `rust-version` (minimum supported Rust version) information, chosen to be 1.60.
+* `exhaust::ExhaustArray` is now marked as `#[deprecated]` (use `exhaust::impls::ExhaustArray` instead).
 
 ## 0.1.1 (2023-04-09)
 
