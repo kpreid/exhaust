@@ -44,6 +44,9 @@ pub use convenience::*;
 
 pub mod iteration;
 
+#[cfg(doctest)]
+pub mod test_compile_fail;
+
 // -------------------------------------------------------------------------------------------------
 
 /// Types that can be exhaustively iterated. That is, an iterator is available which

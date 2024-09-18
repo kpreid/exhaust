@@ -17,8 +17,9 @@ pub(crate) struct ExhaustContext {
     /// Name of the type being exhausted, which is also the type the macro is applied to.
     pub item_type: ConstructorSyntax,
 
-    /// Name of the generated factory type, which is like the type being exhausted
-    /// but with different field types, and is the item type of the generated iterator.
+    /// Name of the generated factory type, which is a unit struct containing a struct
+    /// like the type being exhausted but with different field types,
+    /// and is the item type of the generated iterator.
     pub factory_type: ConstructorSyntax,
 
     /// Name of the generated iterator type.

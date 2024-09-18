@@ -30,7 +30,8 @@ pub(crate) struct ExhaustFields {
 pub(crate) fn exhaust_iter_fields(
     ctx: &ExhaustContext,
     struct_fields: &syn::Fields,
-    factory_type_constructor: &ConstructorSyntax,
+    factory_outer_type_path: &TokenStream2,
+    factory_inner_type_constructor: &ConstructorSyntax,
 ) -> ExhaustFields {
     assert!(
         !struct_fields.is_empty(),
@@ -161,15 +162,15 @@ pub(crate) fn exhaust_iter_fields(
             }
         });
 
-    let factory_item_expr =
-        factory_type_constructor.value_expr(target_field_names.iter(), field_value_getters.iter());
+    let factory_item_expr = factory_inner_type_constructor
+        .value_expr(target_field_names.iter(), field_value_getters.iter());
 
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
     let advance = quote! {
         if #( #iter_field_names.peek().is_some() && )* true {
             // Gather that next factory, advancing the last field iterator only.
-            let factory = #factory_item_expr;
+            let factory = #factory_outer_type_path(#factory_item_expr);
 
             // Perform carries to other field iterators.
             // && short circuiting gives us the behavior we want conveniently, whereas
