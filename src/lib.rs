@@ -38,10 +38,6 @@ use core::iter::{DoubleEndedIterator, ExactSizeIterator, FusedIterator};
 pub(crate) mod patterns;
 
 pub mod impls;
-/// Reexport for compatibility with v0.1.0;
-/// new code should use [`impls::ExhaustArray`].
-#[deprecated]
-pub use impls::ExhaustArray;
 
 mod convenience;
 pub use convenience::*;

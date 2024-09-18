@@ -45,6 +45,7 @@ However, it may be possible to simplify the iterator by moving some code into `f
 
 * `<Option<T> as Exhaust>::Iter` no longer implements `DoubleEndedIterator`.
   This might be added back in the future.
+* Removed `exhaust::ExhaustArray` from the crate root.
 
 ## 0.1.2 (2024-09-18)
 
