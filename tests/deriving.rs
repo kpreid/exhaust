@@ -232,6 +232,25 @@ enum VariableNameHygieneTest {
     Done,
 }
 
+#[test]
+fn debug_impls() {
+    use exhaust::Exhaust;
+    use std::{assert_eq, format, iter::Iterator};
+
+    #[derive(Debug, PartialEq, Exhaust)]
+    enum Foo {
+        X,
+        Y,
+    }
+
+    // TODO: It would be better to print some state, but that requires more code generation work.
+    let mut iter = Foo::exhaust_factories();
+    assert_eq!(format!("{iter:?}"), "ExhaustFooIter { .. }");
+    let factory = Iterator::next(&mut iter).unwrap();
+    assert_eq!(format!("{factory:?}"), "ExhaustFooFactory { .. }");
+    assert_eq!(Foo::from_factory(factory), Foo::X);
+}
+
 /// The presence of this trait's methods should not disrupt the generated code
 #[allow(dead_code)]
 trait ConfusingTraitInScope {

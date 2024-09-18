@@ -115,14 +115,14 @@ pub mod test_compile_fail;
 /// ```
 /// use exhaust::Exhaust;
 ///
-/// #[derive(Clone)]
+/// #[derive(Clone, Debug)]
 /// struct AsciiLetter(char);
 ///
 /// impl Exhaust for AsciiLetter {
 ///     type Iter = ExhaustAsciiLetter;
 ///
-///     // We could avoid needing to `derive(Clone)` by using `char` as the factory, but
-///     // if we did that, then `from_factory()` must check its argument for validity.
+///     // We could avoid needing to `derive(Clone, Debug)` by using `char` as the factory,
+///     // but if we did that, then `from_factory()` must check its argument for validity.
 ///     type Factory = Self;
 ///
 ///     fn exhaust_factories() -> Self::Iter {
@@ -134,7 +134,7 @@ pub mod test_compile_fail;
 ///     }
 /// }
 ///
-/// #[derive(Clone)]  // All `Exhaust::Iter`s must implement `Clone`.
+/// #[derive(Clone, Debug)]  // All `Exhaust::Iter`s must implement `Clone` and `Debug`.
 /// struct ExhaustAsciiLetter {
 ///     next: char
 /// }
@@ -202,7 +202,7 @@ pub trait Exhaust: Sized {
     /// [`ExactSizeIterator`]); it should be treated as an implementation detail.
     ///
     /// </div>
-    type Iter: core::iter::FusedIterator<Item = Self::Factory> + Clone;
+    type Iter: core::iter::FusedIterator<Item = Self::Factory> + Clone + fmt::Debug;
 
     /// Data which can be used to construct `Self`.
     ///
@@ -221,7 +221,7 @@ pub trait Exhaust: Sized {
     /// change; it should be treated as an implementation detail, unless otherwise documented.
     ///
     /// </div>
-    type Factory: Clone;
+    type Factory: Clone + fmt::Debug;
 
     /// Returns an iterator over all values of this type.
     ///
@@ -262,15 +262,42 @@ pub trait Exhaust: Sized {
 
 /// Derive macro generating an impl of the trait [`Exhaust`].
 ///
+/// # Applicability
+///
 /// This macro may be applied to `struct`s and `enum`s, but not `union`s.
+/// All fields must have types which themselves implement [`Exhaust`].
 ///
-/// The generated iterator and factory types will be unnameable except through
-/// the trait implementation’s associated types.
+/// <div class="warning">
 ///
-/// The generated iterator implements [`FusedIterator`],
-/// but not [`DoubleEndedIterator`] or [`ExactSizeIterator`].
-/// It does not currently override any of the optional iterator methods such as
-/// [`Iterator::size_hint()`].
+/// If your type has invariants enforced through private fields, then do not use this derive macro,
+/// as that would make it possible to obtain instances with any values whatsoever.
+/// There is not currently any way to add constraints.
+///
+/// </div>
+///
+/// # Generated code
+///
+/// The macro generates the following items:
+///
+/// * An implementation of [`Exhaust`] for your type.
+///
+/// * A “factory” struct type for `<Self as Exhaust>::Factory`.
+///
+///   It has no public fields.
+///   It implements [`Clone`] and [`fmt::Debug`].
+///   It is unnameable except through the associated type, `<Self as Exhaust>::Factory`.
+///
+/// * An iterator struct type for `<Self as Exhaust>::Iter`.
+///
+///   It has no public fields.
+///   It implements [`Iterator`], [`FusedIterator`], [`Clone`], and [`fmt::Debug`],
+///   but not [`DoubleEndedIterator`] or [`ExactSizeIterator`].
+///   It does not currently override any of the optional iterator methods such as
+///   [`Iterator::size_hint()`].
+///   It is unnameable except through the associated type, `<Self as Exhaust>::Iter`.
+///
+/// The [`fmt::Debug`] implementations currently print only a placeholder with no details.
+/// This may be changed in future versions.
 pub use exhaust_macros::Exhaust;
 
 // -------------------------------------------------------------------------------------------------

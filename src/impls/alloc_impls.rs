@@ -175,7 +175,7 @@ where
 impl<KI, V> fmt::Debug for ExhaustMap<KI, V>
 where
     KI: fmt::Debug + Iterator<Item: fmt::Debug>,
-    V: fmt::Debug + Exhaust<Iter: fmt::Debug, Factory: fmt::Debug>,
+    V: Exhaust<Iter: fmt::Debug, Factory: fmt::Debug>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ExhaustMap")
