@@ -66,6 +66,7 @@ However, it may be possible to simplify the iterator by moving some code into `f
 * `<Option<T> as Exhaust>::Iter` no longer implements `DoubleEndedIterator`.
   This might be added back in the future.
 * Removed `exhaust::ExhaustArray` from the crate root.
+* Removed `exhaust::brute_force_search()`.
 * Removed the public module `exhaust::impls`.
   The iterators can only be accessed through the trait implementation’s associated types.
 
