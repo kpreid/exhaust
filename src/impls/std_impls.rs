@@ -7,7 +7,7 @@ use std::sync;
 use std::vec::Vec;
 
 use crate::iteration::{peekable_exhaust, FlatZipMap};
-use crate::patterns::{factory_is_self, impl_newtype_generic};
+use crate::patterns::{factory_is_self, impl_newtype_generic, impl_singleton};
 use crate::Exhaust;
 
 use super::alloc_impls::{ExhaustMap, ExhaustSet, MapFactory};
@@ -106,13 +106,7 @@ impl Exhaust for std::io::Empty {
 //     }
 // }
 
-impl Exhaust for std::io::Sink {
-    type Iter = iter::Once<std::io::Sink>;
-    fn exhaust_factories() -> Self::Iter {
-        iter::once(std::io::sink())
-    }
-    factory_is_self!();
-}
+impl_singleton!([], std::io::Sink);
 
 impl_newtype_generic!(T: [], sync::Arc<T>, sync::Arc::new);
 impl_newtype_generic!(T: [], Pin<sync::Arc<T>>, sync::Arc::pin);

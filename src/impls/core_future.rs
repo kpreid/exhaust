@@ -1,13 +1,6 @@
-use core::{future, iter};
+use core::future;
 
-use crate::patterns::impl_newtype_generic;
-use crate::Exhaust;
+use crate::patterns::{impl_newtype_generic, impl_singleton};
 
-impl<T> Exhaust for future::Pending<T> {
-    type Iter = iter::Once<future::Pending<T>>;
-    fn exhaust_factories() -> Self::Iter {
-        iter::once(future::pending())
-    }
-    crate::patterns::factory_is_self!();
-}
+impl_singleton!([T], future::Pending<T>, future::pending());
 impl_newtype_generic!(T: [], future::Ready<T>, future::ready);

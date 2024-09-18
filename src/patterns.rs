@@ -14,6 +14,37 @@ macro_rules! factory_is_self {
 }
 pub(crate) use factory_is_self;
 
+/// Implementation for types with exactly one value.
+macro_rules! impl_singleton {
+    // if Default is implemented
+    ([$($generics:tt)*], $self:ty) => {
+        impl<$($generics)*> $crate::Exhaust for $self {
+            type Iter = ::core::iter::Once<()>;
+            type Factory = ();
+            fn exhaust_factories() -> Self::Iter {
+                ::core::iter::once(())
+            }
+            fn from_factory((): Self::Factory) -> Self {
+                ::core::default::Default::default()
+            }
+        }
+    };
+    // if Default is not implemented
+    ([$($generics:tt)*], $self:ty, $ctor:expr) => {
+        impl<$($generics)*> $crate::Exhaust for $self {
+            type Iter = ::core::iter::Once<()>;
+            type Factory = ();
+            fn exhaust_factories() -> Self::Iter {
+                ::core::iter::once(())
+            }
+            fn from_factory((): Self::Factory) -> Self {
+                $ctor
+            }
+        }
+    };
+}
+pub(crate) use impl_singleton;
+
 macro_rules! impl_via_array {
     ($self:ty, $array:expr) => {
         impl $crate::Exhaust for $self {
