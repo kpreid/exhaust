@@ -136,7 +136,7 @@ fn impl_array_of_3() {
 
 #[test]
 fn impl_option() {
-    check_double(vec![None, Some(false), Some(true)]);
+    check(vec![None, Some(false), Some(true)]);
 }
 
 #[test]

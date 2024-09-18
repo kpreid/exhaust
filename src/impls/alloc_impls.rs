@@ -2,7 +2,7 @@ use core::iter::FusedIterator;
 use core::pin::Pin;
 use core::{fmt, iter};
 
-use alloc::borrow::Cow;
+use alloc::borrow::{Cow, ToOwned};
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::rc::Rc;
@@ -23,19 +23,18 @@ impl_newtype_generic!(T: [], Pin<Rc<T>>, Rc::pin);
 /// every value returned will be a [`Cow::Owned`], not a [`Cow::Borrowed`].
 /// This agrees with the [`PartialEq`] implementation for [`Cow`], which considers
 /// owned and borrowed to be equal.
-impl<'a, T: Clone + Exhaust> Exhaust for Cow<'a, T> {
-    type Iter = <T as Exhaust>::Iter;
-    type Factory = <T as Exhaust>::Factory;
+impl<'a, T: ?Sized + ToOwned<Owned = O>, O: Exhaust> Exhaust for Cow<'a, T> {
+    type Iter = <O as Exhaust>::Iter;
+    type Factory = O::Factory;
 
     fn exhaust_factories() -> Self::Iter {
-        <T as Exhaust>::exhaust_factories()
+        O::exhaust_factories()
     }
 
     fn from_factory(factory: Self::Factory) -> Self {
-        Cow::Owned(T::from_factory(factory))
+        Cow::Owned(O::from_factory(factory))
     }
 }
-// TODO: Also implement for `Cow<'_, str>` and `Cow<'_, [T]>`
 
 // Note: This impl is essentially identical to the one for `HashSet`.
 impl<T: Exhaust + Ord> Exhaust for BTreeSet<T> {
