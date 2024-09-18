@@ -80,7 +80,7 @@ macro_rules! impl_newtype_generic {
     ($tvar:ident : [ $( $bounds:tt )* ] , $container:ty, $wrap_fn:expr) => {
         impl<$tvar: $crate::Exhaust> $crate::Exhaust for $container
         where
-            $tvar: Clone + $( $bounds )*
+            $tvar: $( $bounds )*
         {
             type Iter = <$tvar as $crate::Exhaust>::Iter;
             fn exhaust_factories() -> Self::Iter {
