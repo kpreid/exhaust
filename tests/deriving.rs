@@ -187,12 +187,43 @@ fn enum_generic() {
     );
 }
 
+mod module {
+    #[derive(Clone, ::exhaust::Exhaust)]
+    enum EnumInsideMod<T> {
+        N,
+        S(T),
+    }
+
+    #[derive(Clone, Debug, PartialEq, ::exhaust::Exhaust)]
+    struct StructInsideMod(bool);
+}
+
+/// Items in functions have different scoping rules than items in modules.
+/// Exercise using the derive inside one.
+#[test]
+fn function_containing_derive() {
+    #[derive(Clone, exhaust::Exhaust)]
+    enum EnumInsideFn<T> {
+        N,
+        S(T),
+    }
+
+    #[derive(Clone, Debug, PartialEq, exhaust::Exhaust)]
+    struct StructInsideFn(bool);
+
+    std::assert_eq!(
+        c::<StructInsideFn>(),
+        std::vec![StructInsideFn(false), StructInsideFn(true)]
+    );
+}
+
 #[allow(dead_code)]
 #[derive(Clone, exhaust::Exhaust)]
 enum VariableNameHygieneTest {
-    // These field names shouldn't conflict with internal variables in the generated impl.
+    // These field and variant names shouldn't conflict with internal variables in the generated impl.
     Foo { has_next: (), item: (), f0: () },
     Bar(()),
+    Done,
 }
 
 /// The presence of this trait's methods should not disrupt the generated code
@@ -204,4 +235,9 @@ trait ConfusingTraitInScope {
     fn unwrap(&self, _dont_call_me: ()) {}
     fn default(_dont_call_me: ()) {}
 }
-impl<T> ConfusingTraitInScope for T {}
+impl<T: ?p::Sized> ConfusingTraitInScope for T {}
+
+#[allow(dead_code)]
+trait Exhaust {
+    // Not the real Exhaust trait
+}
