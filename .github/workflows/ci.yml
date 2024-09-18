@@ -23,7 +23,7 @@ jobs:
   test:
     strategy:
       matrix:
-        toolchain: [stable, beta, nightly, 1.60.0]
+        toolchain: [stable, beta, nightly, 1.80.0]
 
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
@@ -61,15 +61,15 @@ jobs:
 
     # Test with latest deps, but only if we can.
     # TODO: Once Cargo has the MSRV-aware resolver, this `if` will be unnecessary.
-    - if: ${{ matrix.toolchain != '1.60.0' }}
+    - if: ${{ matrix.toolchain != '1.80.0' }}
       run: cargo update
 
     - name: Compile with updates
-      if: ${{ matrix.toolchain != '1.60.0' }}
+      if: ${{ matrix.toolchain != '1.80.0' }}
       run: cargo test --timings --no-run
 
     - name: Test with updates
-      if: ${{ matrix.toolchain != '1.60.0' }}
+      if: ${{ matrix.toolchain != '1.80.0' }}
       run: cargo test --timings
 
     # Save timing reports so we can download and view them
