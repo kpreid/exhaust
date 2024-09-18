@@ -28,6 +28,10 @@ required-features = ["alloc"]
 name = "std_impls"
 required-features = ["std"]
 
+[[test]]
+name = "keyed_collections"
+required-features = ["alloc"]
+
 [dependencies]
 exhaust-macros = { version = "0.1.1", path = "exhaust-macros" }
 # itertools is used for its powerset iterator, which is only available with alloc
