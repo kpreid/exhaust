@@ -40,6 +40,7 @@ However, it may be possible to simplify the iterator by moving some code into `f
     * `core::cell::UnsafeCell`
     * `core::sync::AtomicBool`
     * `core::sync::Atomic{U,I}{8,16,32}`
+    * `alloc::borrow::Cow<'_ T>`, when `T` implements only `ToOwned` rather than `Clone`.
     * `std::io::BufReader`
     * `std::io::BufWriter`
     * `std::io::Chain`
