@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "exhaust"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.80.0"
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
@@ -33,7 +33,7 @@ name = "keyed_collections"
 required-features = ["alloc"]
 
 [dependencies]
-exhaust-macros = { version = "0.2.0", path = "exhaust-macros" }
+exhaust-macros = { version = "0.2.1", path = "exhaust-macros" }
 # itertools is used for its powerset iterator, which is only available with alloc
 itertools = { workspace = true, optional = true }
 paste = "1.0.5"
