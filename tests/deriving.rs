@@ -227,9 +227,35 @@ fn function_containing_derive() {
 #[derive(exhaust::Exhaust)]
 enum VariableNameHygieneTest {
     // These field and variant names shouldn't conflict with internal variables in the generated impl.
-    Foo { has_next: (), item: (), f0: () },
-    Bar(()),
+    Foo {
+        has_next: (),
+        item: (),
+        iter_f_0: (),
+        factory: (),
+    },
+    Bar {
+        done: (),
+    },
     Done,
+}
+
+#[test]
+fn not_a_name_conflict() {
+    use exhaust::Exhaust;
+
+    // The macro generates a type named this, but it isn’t a problem because it’s nested in a
+    // const block. (As long as we don't mention that type in `Foo`. See `test_compile_fail`.)
+    #[derive(Exhaust)]
+    #[allow(dead_code)]
+    struct ExhaustFooIter(i32);
+
+    #[derive(Debug, PartialEq, Exhaust)]
+    struct Foo(bool);
+
+    // We can name the not-conflicting type.
+    _ = ExhaustFooIter(10);
+    // We can use the exhaust() normally.
+    std::assert_eq!(c::<Foo>(), std::vec![Foo(false), Foo(true)])
 }
 
 #[test]
