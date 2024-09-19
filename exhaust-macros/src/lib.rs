@@ -246,7 +246,7 @@ fn exhaust_iter_struct(
 
     let factory_state_struct_type = Ident::new(
         &format!(
-            "__ExhaustFactoryState_{}",
+            "ExhaustFactoryState{}",
             ctx.item_type.name_for_incorporation()?
         ),
         Span::mixed_site(),
@@ -387,14 +387,14 @@ fn exhaust_iter_enum(
     // so that the user of the macro cannot depend on its implementation details.
     let iter_state_enum_type = Ident::new(
         &format!(
-            "__ExhaustIterState_{}",
+            "ExhaustIterState{}",
             ctx.item_type.name_for_incorporation()?
         ),
         Span::mixed_site(),
     );
     let factory_state_enum_type = Ident::new(
         &format!(
-            "__ExhaustFactoryState_{}",
+            "ExhaustFactoryState{}",
             ctx.item_type.name_for_incorporation()?
         ),
         Span::mixed_site(),
