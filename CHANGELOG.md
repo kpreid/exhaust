@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased 0.2.0 (date TBD)
+## 0.2.0 (2024-09-18)
 
 ### Breaking: No `Clone` Requirement
 
@@ -59,7 +59,7 @@ However, it may be possible to simplify the iterator by moving some code into `f
 * The minimum supported Rust version is now 1.80.
 * **Breaking:** The derive macro `derive(Exhaust)` now hides its generated items.
   They can only be accessed through the trait implementation’s associated types.
-* **Breaking:** `Exhaust::Iter` types now must implement `FusedIterator`.
+* **Breaking:** `Exhaust::Iter` types now must implement `Debug` and `FusedIterator`.
 
 ### Removed
 
