@@ -76,6 +76,10 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         ctx.generics_with_bounds(syn::parse_quote! {});
 
     Ok(quote! {
+        // rust-analyzer (but not rustc) sometimes produces lints on macro generated code it
+        // shouldn't. We don't expect to actually hit this case normally, but in general,
+        // we don't want to *ever* bother our users with unfixable warnings about weird names.
+        #[allow(nonstandard_style)]
         // This anonymous constant allows us to make all our generated types be public-in-private,
         // without altering the meaning of any paths they use.
         const _: () = {
