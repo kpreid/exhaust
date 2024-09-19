@@ -298,6 +298,13 @@ pub trait Exhaust: Sized {
 ///
 /// The [`fmt::Debug`] implementations currently print only a placeholder with no details.
 /// This may be changed in future versions.
+///
+/// All of the generated types have names like `Exhaust<your type name><some suffix>`.
+/// Unfortunately, it is *possible* for these names to conflict with your code’s names;
+/// but conflicts will not occur as long as you avoid *using* any items named `ExhaustFoo*`
+/// from within a type named `Foo`.
+/// Items which are merely in the same module do not interfere, because only the code generated
+/// by the `derive(Exhaust)` macro is affected.
 pub use exhaust_macros::Exhaust;
 
 // -------------------------------------------------------------------------------------------------

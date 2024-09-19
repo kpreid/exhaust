@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased 0.2.1
+
+### Changed
+
+* The macro-generated types are now always named `Exhaust<your type name><some suffix>`.
+  This makes it possible to reliably avoid name conflicts in the narrow case that they can happen.
+
 ## 0.2.0 (2024-09-18)
 
 ### Breaking: No `Clone` Requirement

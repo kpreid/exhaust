@@ -45,14 +45,9 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         data,
     } = input;
 
-    let factory_type_name = Ident::new(
-        &format!("Exhaust{}Factory", item_type_name),
-        Span::mixed_site(),
-    );
-    let iterator_type_name = Ident::new(
-        &format!("Exhaust{}Iter", item_type_name),
-        Span::mixed_site(),
-    );
+    let item_type_name_str = &item_type_name.to_string();
+    let factory_type_name = common::generated_type_name(item_type_name_str, "Factory");
+    let iterator_type_name = common::generated_type_name(item_type_name_str, "Iter");
 
     let ctx = ExhaustContext {
         vis,
@@ -162,7 +157,7 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
         },
         item_type: ConstructorSyntax::Tuple,
         factory_type: ConstructorSyntax::Tuple,
-        iterator_type_name: Ident::new(&format!("ExhaustTuple{}Iter", size), Span::mixed_site()),
+        iterator_type_name: common::generated_type_name("Tuple", "Iter"),
         exhaust_crate_path: parse_quote! { crate },
     };
 
@@ -244,13 +239,7 @@ fn exhaust_iter_struct(
     let factory_type_name = &ctx.factory_type.path()?;
     let factory_type = &ctx.factory_type.parameterized(&ctx.generics);
 
-    let factory_state_struct_type = Ident::new(
-        &format!(
-            "__ExhaustFactoryState_{}",
-            ctx.item_type.name_for_incorporation()?
-        ),
-        Span::mixed_site(),
-    );
+    let factory_state_struct_type = ctx.generated_type_name("FactoryState")?;
     let factory_state_ctor = ConstructorSyntax::Braced(factory_state_struct_type.to_token_stream());
 
     let ExhaustFields {
@@ -385,22 +374,9 @@ fn exhaust_iter_enum(
 
     // These enum types are both wrapped in structs,
     // so that the user of the macro cannot depend on its implementation details.
-    let iter_state_enum_type = Ident::new(
-        &format!(
-            "__ExhaustIterState_{}",
-            ctx.item_type.name_for_incorporation()?
-        ),
-        Span::mixed_site(),
-    );
-    let factory_state_enum_type = Ident::new(
-        &format!(
-            "__ExhaustFactoryState_{}",
-            ctx.item_type.name_for_incorporation()?
-        ),
-        Span::mixed_site(),
-    )
-    .to_token_stream();
-    let factory_state_ctor = ConstructorSyntax::Braced(factory_state_enum_type.to_token_stream());
+    let iter_state_enum_type = ctx.generated_type_name("IterState")?;
+    let factory_state_enum_type = ctx.generated_type_name("FactoryState")?.to_token_stream();
+    let factory_state_ctor = ConstructorSyntax::Braced(factory_state_enum_type.clone());
 
     // One ident per variant of the original enum.
     let state_enum_progress_variants: Vec<Ident> = e
