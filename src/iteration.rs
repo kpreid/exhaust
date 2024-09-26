@@ -10,6 +10,8 @@ use crate::Exhaust;
 
 /// Convenience alias for a Peekable Exhaustive Iterator, frequently used in iterator
 /// implementations.
+///
+/// Note that this iterator’s items are of type `T::Factory`, not `T`.
 pub type Pei<T> = Peekable<<T as Exhaust>::Iter>;
 
 /// Construct a [`Peekable`] exhaustive factory iterator.
@@ -21,10 +23,33 @@ pub fn peekable_exhaust<T: Exhaust>() -> Pei<T> {
 
 /// Perform “carry” within a pair of peekable iterators.
 ///
-/// That is, if `low` is exhausted, advance `high`, and replace `low`
+/// That is, if `low` has no more elements, advance `high`, and replace `low`
 /// with a fresh iterator from the factory function.
 ///
 /// Returns whether a carry occurred.
+///
+/// # Example
+///
+/// ```
+/// use exhaust::{Exhaust, iteration::carry};
+///
+/// // Setup
+/// let new_iter = || u8::exhaust().peekable();
+/// let mut high = new_iter();
+/// let mut low = new_iter();
+/// for _ in &mut low {} // advance to the end
+///
+/// // Perform a carry.
+/// assert_eq!([high.peek(), low.peek()], [Some(&0), None]);
+/// let carried = carry(&mut high, &mut low, new_iter);
+/// assert!(carried);
+/// assert_eq!([high.peek(), low.peek()], [Some(&1), Some(&0)]);
+///
+/// // If the low iterator has an element already, the iterators are unchanged.
+/// let carried = carry(&mut high, &mut low, new_iter);
+/// assert!(!carried);
+/// assert_eq!([high.peek(), low.peek()], [Some(&1), Some(&0)]);
+/// ```
 pub fn carry<I, J, F>(high: &mut Peekable<I>, low: &mut Peekable<J>, factory: F) -> bool
 where
     I: Iterator,
@@ -39,6 +64,9 @@ where
         false
     }
 }
+
+#[test]
+fn carry_example() {}
 
 /// Given an iterator and a function of its elements that yields an iterator,
 /// produce tuples of the two iterators' results.
