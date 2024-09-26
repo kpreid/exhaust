@@ -1,11 +1,20 @@
 # Changelog
 
-## Unreleased 0.2.1
+## 0.2.1 (2024-09-26)
+
+### Added
+
+* `Cell<T>` implements `Exhaust` even when `T` does not implement `Copy`.
+* Documentation contains examples for the `Exhaust` derive macro and `iteration::carry`.
 
 ### Changed
 
 * The macro-generated types are now always named `Exhaust<your type name><some suffix>`.
-  This makes it possible to reliably avoid name conflicts in the narrow case that they can happen.
+  This makes it possible to reliably avoid name conflicts in the narrow case that they can happen,
+  and is more systematic than the previous naming scheme.
+* Explicitly `allow(nonstandard_style)` in macro generated code.
+  Together with the above name change,
+  this should prevent lint from the macro-generated code when using rust-analyzer.
 
 ## 0.2.0 (2024-09-18)
 
