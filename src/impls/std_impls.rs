@@ -11,9 +11,9 @@ use super::alloc_impls::{ExhaustMap, ExhaustSet, MapFactory};
 
 mod collections {
     use super::*;
+    use alloc::vec::Vec;
     use core::hash::{BuildHasher, Hash};
     use std::collections::{HashMap, HashSet};
-    use std::vec::Vec;
 
     // Note: This impl is essentially identical to the one for `BTreeSet`.
     impl<T, S> Exhaust for HashSet<T, S>
@@ -60,7 +60,7 @@ mod io {
     use std::io;
 
     impl<T: Exhaust + AsRef<[u8]> + Clone + fmt::Debug> Exhaust for io::Cursor<T> {
-        type Iter = FlatZipMap<crate::Iter<T>, std::ops::RangeInclusive<u64>, io::Cursor<T>>;
+        type Iter = FlatZipMap<crate::Iter<T>, core::ops::RangeInclusive<u64>, io::Cursor<T>>;
         /// Returns each combination of a buffer state and a cursor position, except for those
         /// where the position is beyond the end of the buffer.
         fn exhaust_factories() -> Self::Iter {

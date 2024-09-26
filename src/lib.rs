@@ -15,6 +15,11 @@
 #![warn(unreachable_pub)]
 #![warn(missing_docs)]
 #![warn(missing_debug_implementations)]
+#![warn(
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_core,
+    clippy::std_instead_of_alloc
+)]
 #![warn(clippy::cast_lossless)]
 #![warn(clippy::exhaustive_enums)]
 #![warn(clippy::exhaustive_structs)]
