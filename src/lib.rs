@@ -88,31 +88,7 @@ pub mod test_compile_fail;
 /// Using [the derive macro](macro@Exhaust) to implement the trait:
 ///
 /// ```
-/// use exhaust::Exhaust;
-///
-/// #[derive(PartialEq, Debug, Exhaust)]
-/// struct Foo {
-///     a: bool,
-///     b: Bar,
-/// }
-///
-/// #[derive(PartialEq, Debug, Exhaust)]
-/// enum Bar {
-///     One,
-///     Two(bool),
-/// }
-///
-/// assert_eq!(
-///     Foo::exhaust().collect::<Vec<Foo>>(),
-///     vec![
-///         Foo { a: false, b: Bar::One },
-///         Foo { a: false, b: Bar::Two(false) },
-///         Foo { a: false, b: Bar::Two(true) },
-///         Foo { a: true, b: Bar::One },
-///         Foo { a: true, b: Bar::Two(false) },
-///         Foo { a: true, b: Bar::Two(true) },
-///     ],
-/// );
+#[doc = include_str!("example-derive-usage.rs")]
 /// ```
 ///
 /// Writing a manual implementation of `Exhaust`:
@@ -310,6 +286,12 @@ pub trait Exhaust: Sized {
 /// from within a type named `Foo`.
 /// Items which are merely in the same module do not interfere, because only the code generated
 /// by the `derive(Exhaust)` macro is affected.
+///
+/// # Example
+///
+/// ```
+#[doc = include_str!("example-derive-usage.rs")]
+/// ```
 pub use exhaust_macros::Exhaust;
 
 // -------------------------------------------------------------------------------------------------
