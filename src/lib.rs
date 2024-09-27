@@ -211,6 +211,7 @@ pub trait Exhaust: Sized {
     /// This function is equivalent to `Self::exhaust_factories().map(Self::from_factory)`.
     /// Implementors should not override it.
     #[must_use]
+    #[mutants::skip]
     fn exhaust() -> Iter<Self> {
         Iter::default()
     }

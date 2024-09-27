@@ -7,21 +7,17 @@ use alloc::collections::{BTreeMap, BTreeSet};
 
 use exhaust::Exhaust;
 
-fn c<T: Exhaust>() -> Vec<T> {
-    T::exhaust().collect()
-}
+mod helper;
+use helper::check;
 
 #[test]
 fn impl_btreeset() {
-    assert_eq!(
-        c::<BTreeSet<bool>>(),
-        vec![
-            BTreeSet::from_iter([]),
-            BTreeSet::from_iter([false]),
-            BTreeSet::from_iter([true]),
-            BTreeSet::from_iter([false, true]),
-        ]
-    );
+    check::<BTreeSet<bool>>(vec![
+        BTreeSet::from_iter([]),
+        BTreeSet::from_iter([false]),
+        BTreeSet::from_iter([true]),
+        BTreeSet::from_iter([false, true]),
+    ]);
 }
 
 #[cfg(feature = "std")]
@@ -31,15 +27,12 @@ fn impl_hashset() {
     // TODO: This is not the preferred element ordering; [false, true] should be
     // before [true], as per lexicographic ordering. Fixing that will require
     // implementing our own powerset iterator.
-    assert_eq!(
-        c::<HashSet<bool>>(),
-        vec![
-            HashSet::from_iter([]),
-            HashSet::from_iter([false]),
-            HashSet::from_iter([true]),
-            HashSet::from_iter([false, true]),
-        ]
-    );
+    check::<HashSet<bool>>(vec![
+        HashSet::from_iter([]),
+        HashSet::from_iter([false]),
+        HashSet::from_iter([true]),
+        HashSet::from_iter([false, true]),
+    ]);
 }
 
 fn bool_maps() -> Vec<BTreeMap<bool, bool>> {
@@ -58,7 +51,7 @@ fn bool_maps() -> Vec<BTreeMap<bool, bool>> {
 
 #[test]
 fn impl_btreemap() {
-    assert_eq!(c::<BTreeMap<bool, bool>>(), bool_maps(),);
+    check::<BTreeMap<bool, bool>>(bool_maps());
 }
 
 #[cfg(feature = "std")]
@@ -71,6 +64,7 @@ fn impl_hashmap() {
     assert_eq!(
         HashMap::<bool, bool>::exhaust()
             .map(BTreeMap::from_iter)
+            .take(1000) // precaution against infinite loop bugs
             .collect::<BTreeSet<_>>(),
         bool_maps().into_iter().collect(),
     );

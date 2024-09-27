@@ -48,6 +48,13 @@ fn impl_bool() {
 }
 
 #[test]
+fn impl_f32() {
+    // We can't exhaustively test it but we can check some easy properties.
+    assert_eq!(f32::exhaust().next(), Some(0.0));
+    assert!(f32::exhaust().next_back().unwrap().is_nan());
+}
+
+#[test]
 fn impl_char() {
     use std::collections::HashSet;
     let mut expected = HashSet::from([
@@ -148,4 +155,25 @@ fn impl_poll() {
 #[test]
 fn impl_result() {
     check(vec![Ok(false), Ok(true), Err(false), Err(true)]);
+}
+
+/// Tests of `exhaust::Iter`, which isn't strictly an impl for crate core, but doesn't need its
+/// own target.
+mod iter {
+    #[test]
+    fn size_hint_and_len() {
+        let it = exhaust::Iter::<bool>::default();
+        assert_eq!(it.size_hint(), (2, Some(2)));
+        assert_eq!(it.len(), 2);
+    }
+
+    #[test]
+    fn clone() {
+        let mut it1 = exhaust::Iter::<bool>::default();
+        assert_eq!(it1.next(), Some(false));
+        let mut it2 = it1.clone();
+
+        assert_eq!(it2.len(), 1);
+        assert_eq!(it2.next(), Some(true));
+    }
 }
