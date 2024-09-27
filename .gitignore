@@ -1,2 +1,6 @@
 /target
 Cargo.lock
+
+# output of cargo-mutants
+/mutants.out/
+/mutants.out.old/

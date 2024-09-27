@@ -1,0 +1,6 @@
+# For https://mutants.rs/controlling.html
+
+exclude_re = [
+    "::fmt\\b", # easy to break, hard to test completely
+    "::exhaust_factories()", # very frequently really is just Default::default()
+]
