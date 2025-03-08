@@ -1,4 +1,4 @@
-use core::num;
+use core::{num, ops};
 
 use exhaust::Exhaust;
 
@@ -157,8 +157,48 @@ fn impl_result() {
     check(vec![Ok(false), Ok(true), Err(false), Err(true)]);
 }
 
+mod impl_ops {
+    use super::*;
+
+    #[test]
+    fn impl_bound() {
+        check(vec![
+            ops::Bound::Included(false),
+            ops::Bound::Included(true),
+            ops::Bound::Excluded(false),
+            ops::Bound::Excluded(true),
+            ops::Bound::Unbounded,
+        ]);
+    }
+
+    #[test]
+    fn impl_control_flow() {
+        check(vec![
+            ops::ControlFlow::Continue(false),
+            ops::ControlFlow::Continue(true),
+            ops::ControlFlow::Break(false),
+            ops::ControlFlow::Break(true),
+        ]);
+    }
+
+    #[test]
+    fn impl_range_from() {
+        check(vec![false.., true..]);
+    }
+
+    #[test]
+    fn impl_range_to() {
+        check(vec![..false, ..true]);
+    }
+
+    #[test]
+    fn impl_range_to_inclusive() {
+        check(vec![..=false, ..=true]);
+    }
+}
+
 /// Tests of `exhaust::Iter`, which isn't strictly an impl for crate core, but doesn't need its
-/// own target.
+/// own test target.
 mod iter {
     #[test]
     fn size_hint_and_len() {

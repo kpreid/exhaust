@@ -14,6 +14,7 @@ mod core_future;
 mod core_hash;
 mod core_marker;
 mod core_num;
+mod core_ops;
 mod core_option;
 mod core_sync;
 //  core::pin::Pin is handled separately for each pinnable smart pointer.
@@ -33,4 +34,3 @@ mod std_impls;
 //   `OnceCell` & `OnceLock`
 //   core::fmt::Alignment
 //   core::fmt::Error (do we want to impl for Error types in general?)
-//   core::ops::{Bound, ControlFlow, Range*}
