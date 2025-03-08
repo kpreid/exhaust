@@ -1,7 +1,10 @@
 use core::{fmt, iter};
 
 use crate::iteration::{carry, peekable_exhaust};
-use crate::patterns::{factory_is_self, impl_newtype_generic, impl_via_array, impl_via_range};
+use crate::patterns::{
+    delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_via_array,
+    impl_via_range,
+};
 use crate::Exhaust;
 
 impl Exhaust for () {
@@ -31,11 +34,8 @@ impl_via_range!(u32, u32::MIN, u32::MAX);
 // i64 and larger sizes are not implemented because it is not feasible to exhaust them.
 /// Note: The floats produced include many `NaN`s (all unequal in representation).
 impl Exhaust for f32 {
-    type Iter = <u32 as Exhaust>::Iter;
-    type Factory = u32;
-    fn exhaust_factories() -> Self::Iter {
-        u32::exhaust_factories()
-    }
+    delegate_factory_and_iter!(u32);
+
     fn from_factory(factory: Self::Factory) -> Self {
         f32::from_bits(factory)
     }

@@ -1,14 +1,10 @@
 use core::task;
 
+use crate::patterns::delegate_factory_and_iter;
 use crate::Exhaust;
 
 impl<T: Exhaust> Exhaust for task::Poll<T> {
-    type Iter = <Option<T> as Exhaust>::Iter;
-    type Factory = <Option<T> as Exhaust>::Factory;
-
-    fn exhaust_factories() -> Self::Iter {
-        Option::<T>::exhaust_factories()
-    }
+    delegate_factory_and_iter!(Option<T>);
 
     fn from_factory(factory: Self::Factory) -> Self {
         match Option::<T>::from_factory(factory) {

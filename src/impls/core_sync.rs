@@ -3,12 +3,7 @@
 macro_rules! impl_atomic {
     ($t:ty, $atomic:ident) => {
         impl Exhaust for atomic::$atomic {
-            type Iter = <$t as Exhaust>::Iter;
-            type Factory = <$t as Exhaust>::Factory;
-
-            fn exhaust_factories() -> Self::Iter {
-                <$t>::exhaust_factories()
-            }
+            $crate::patterns::delegate_factory_and_iter!($t);
 
             fn from_factory(factory: Self::Factory) -> Self {
                 atomic::$atomic::new(factory)

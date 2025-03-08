@@ -57,6 +57,7 @@ mod collections {
 
 mod io {
     use super::*;
+    use crate::patterns::delegate_factory_and_iter;
     use std::io;
 
     impl<T: Exhaust + AsRef<[u8]> + Clone + fmt::Debug> Exhaust for io::Cursor<T> {
@@ -78,38 +79,21 @@ mod io {
     }
 
     impl<T: io::Read + Exhaust> Exhaust for io::BufReader<T> {
-        type Iter = T::Iter;
-        type Factory = T::Factory;
-
-        fn exhaust_factories() -> Self::Iter {
-            T::exhaust_factories()
-        }
-
+        delegate_factory_and_iter!(T);
         fn from_factory(factory: Self::Factory) -> Self {
             io::BufReader::new(T::from_factory(factory))
         }
     }
 
     impl<T: io::Write + Exhaust> Exhaust for io::BufWriter<T> {
-        type Iter = T::Iter;
-        type Factory = T::Factory;
-
-        fn exhaust_factories() -> Self::Iter {
-            T::exhaust_factories()
-        }
-
+        delegate_factory_and_iter!(T);
         fn from_factory(factory: Self::Factory) -> Self {
             io::BufWriter::new(T::from_factory(factory))
         }
     }
 
     impl<T: io::Read + Exhaust, U: io::Read + Exhaust> Exhaust for io::Chain<T, U> {
-        type Iter = <(T, U) as Exhaust>::Iter;
-        type Factory = <(T, U) as Exhaust>::Factory;
-
-        fn exhaust_factories() -> Self::Iter {
-            <(T, U)>::exhaust_factories()
-        }
+        delegate_factory_and_iter!((T, U));
 
         fn from_factory(factory: Self::Factory) -> Self {
             let (first, second) = <(T, U)>::from_factory(factory);
@@ -126,26 +110,14 @@ mod io {
     }
 
     impl<T: io::Write + Exhaust> Exhaust for io::LineWriter<T> {
-        type Iter = T::Iter;
-        type Factory = T::Factory;
-
-        fn exhaust_factories() -> Self::Iter {
-            T::exhaust_factories()
-        }
-
+        delegate_factory_and_iter!(T);
         fn from_factory(factory: Self::Factory) -> Self {
             io::LineWriter::new(T::from_factory(factory))
         }
     }
 
     impl Exhaust for io::Repeat {
-        type Iter = <u8 as Exhaust>::Iter;
-        type Factory = u8;
-
-        fn exhaust_factories() -> Self::Iter {
-            u8::exhaust_factories()
-        }
-
+        delegate_factory_and_iter!(u8);
         fn from_factory(factory: Self::Factory) -> Self {
             io::repeat(factory)
         }

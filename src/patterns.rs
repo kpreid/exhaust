@@ -14,6 +14,21 @@ macro_rules! factory_is_self {
 }
 pub(crate) use factory_is_self;
 
+/// Delegate the `type Iter`, `type Factory`, and `from_factory` to another type.
+/// Use this macro inside an `impl Exhaust`, and implement `from_factory()` to convert
+/// from `$delegate`’s factory to `Self` (usually using `$delegate::from_factory()`).
+macro_rules! delegate_factory_and_iter {
+    ($delegate:ty) => {
+        type Iter = <$delegate as $crate::Exhaust>::Iter;
+        type Factory = <$delegate as $crate::Exhaust>::Factory;
+
+        fn exhaust_factories() -> Self::Iter {
+            <$delegate as $crate::Exhaust>::exhaust_factories()
+        }
+    };
+}
+pub(crate) use delegate_factory_and_iter;
+
 /// Implementation for types with exactly one value.
 macro_rules! impl_singleton {
     // if Default is implemented

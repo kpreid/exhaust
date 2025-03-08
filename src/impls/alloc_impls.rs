@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 use itertools::Itertools as _;
 
 use crate::iteration::peekable_exhaust;
-use crate::patterns::impl_newtype_generic;
+use crate::patterns::{delegate_factory_and_iter, impl_newtype_generic};
 use crate::Exhaust;
 
 impl_newtype_generic!(T: [], Box<T>, Box::new);
@@ -24,12 +24,7 @@ impl_newtype_generic!(T: [], Pin<Rc<T>>, Rc::pin);
 /// This agrees with the [`PartialEq`] implementation for [`Cow`], which considers
 /// owned and borrowed to be equal.
 impl<'a, T: ?Sized + ToOwned<Owned = O>, O: Exhaust> Exhaust for Cow<'a, T> {
-    type Iter = <O as Exhaust>::Iter;
-    type Factory = O::Factory;
-
-    fn exhaust_factories() -> Self::Iter {
-        O::exhaust_factories()
-    }
+    delegate_factory_and_iter!(O);
 
     fn from_factory(factory: Self::Factory) -> Self {
         Cow::Owned(O::from_factory(factory))
