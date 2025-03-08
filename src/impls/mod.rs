@@ -10,6 +10,7 @@
 mod core_cell;
 mod core_cmp;
 mod core_convert;
+mod core_fmt;
 mod core_future;
 mod core_hash;
 mod core_marker;
@@ -32,5 +33,4 @@ mod std_impls;
 //   core::iter::* (combinatorial explosion fun!)
 //     Iterators for std library types *not* in core::iter
 //   `OnceCell` & `OnceLock`
-//   core::fmt::Alignment
-//   core::fmt::Error (do we want to impl for Error types in general?)
+//   Constructible error types
