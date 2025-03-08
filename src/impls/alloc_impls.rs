@@ -23,7 +23,7 @@ impl_newtype_generic!(T: [], Pin<Rc<T>>, Rc::pin);
 /// every value returned will be a [`Cow::Owned`], not a [`Cow::Borrowed`].
 /// This agrees with the [`PartialEq`] implementation for [`Cow`], which considers
 /// owned and borrowed to be equal.
-impl<'a, T: ?Sized + ToOwned<Owned = O>, O: Exhaust> Exhaust for Cow<'a, T> {
+impl<T: ?Sized + ToOwned<Owned = O>, O: Exhaust> Exhaust for Cow<'_, T> {
     delegate_factory_and_iter!(O);
 
     fn from_factory(factory: Self::Factory) -> Self {
