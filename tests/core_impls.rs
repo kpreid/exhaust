@@ -1,4 +1,4 @@
-use core::{num, ops};
+use core::{fmt, num, ops};
 
 use exhaust::Exhaust;
 
@@ -155,6 +155,24 @@ fn impl_poll() {
 #[test]
 fn impl_result() {
     check(vec![Ok(false), Ok(true), Err(false), Err(true)]);
+}
+
+mod impl_fmt {
+    use super::*;
+
+    #[test]
+    fn impl_alignment() {
+        check(vec![
+            core::fmt::Alignment::Left,
+            core::fmt::Alignment::Right,
+            core::fmt::Alignment::Center,
+        ]);
+    }
+
+    #[test]
+    fn impl_error() {
+        check_double(vec![fmt::Error]);
+    }
 }
 
 mod impl_ops {
