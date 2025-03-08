@@ -1,12 +1,8 @@
+use crate::patterns::delegate_factory_and_iter;
 use crate::Exhaust;
 
 impl<T: Exhaust, E: Exhaust> Exhaust for Result<T, E> {
-    type Iter = <remote::Result<T, E> as Exhaust>::Iter;
-    type Factory = <remote::Result<T, E> as Exhaust>::Factory;
-
-    fn exhaust_factories() -> Self::Iter {
-        remote::Result::exhaust_factories()
-    }
+    delegate_factory_and_iter!(remote::Result<T, E>);
 
     fn from_factory(factory: Self::Factory) -> Self {
         match remote::Result::from_factory(factory) {
