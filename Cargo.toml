@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "exhaust"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 rust-version = "1.80.0"
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."

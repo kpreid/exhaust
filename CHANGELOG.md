@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.2 (2025-03-08)
+
+### Added
+
+* `impl Exhaust for ...`
+  * `core::fmt::Alignment`
+  * `core::fmt::Error`
+  * `core::cell::OnceCell`
+  * `core::ops::Bound`
+  * `core::ops::ControlFlow`
+  * `core::ops::RangeFrom`
+  * `core::ops::RangeFull`
+  * `core::ops::RangeTo`
+  * `core::ops::RangeToInclusive`
+  * `std::sync::OnceLock`
+  * `std::sync::mpsc::RecvError`
+  * `std::sync::mpsc::RecvTimeoutError`
+  * `std::sync::mpsc::SendError`
+  * `std::sync::mpsc::TryRecvError`
+  * `std::sync::mpsc::TrySendError`
+
+* The dependency on `itertools` can now use either version 0.14 or version 0.13.
+  This has no effect on the functionality of `exhaust`.
+
 ## 0.2.1 (2024-09-26)
 
 ### Added
