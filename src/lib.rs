@@ -44,6 +44,9 @@ pub(crate) mod patterns;
 
 mod impls;
 
+mod indexable;
+pub use indexable::Indexable;
+
 pub mod iteration;
 
 #[cfg(doctest)]
