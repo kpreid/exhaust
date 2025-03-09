@@ -168,8 +168,8 @@ pub mod test_compile_fail;
 /// * [`core::mem::MaybeUninit`], because it is not useful to obtain a `MaybeUninit<T>`
 ///   value without knowing whether it is initialized, and if they are to be all
 ///   initialized, then `T::exhaust()` is just as good.
-/// * [`core::ops::Range*`](core::ops), because it is ambiguous whether inverted (start > end)
-///   ranges should be generated.
+/// * [`core::ops::Range` and `core::ops::RangeInclusive`](core::ops), because it is ambiguous
+///   whether inverted (start > end) ranges should be generated.
 /// * [`std::io::ErrorKind`] and other explicitly non-exhaustive types.
 pub trait Exhaust: Sized {
     /// Iterator type returned by [`Self::exhaust_factories()`].
