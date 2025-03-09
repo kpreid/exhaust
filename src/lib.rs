@@ -247,8 +247,8 @@ pub trait Exhaust: Sized {
     #[must_use]
     fn exhaust_factories() -> Self::Iter;
 
-    /// Construct a concrete value of this type from a `Self::Factory` value produced by
-    /// its `Self::Iter`.
+    /// Construct a concrete value of this type from a [`Self::Factory`] value produced by
+    /// its [`Self::Iter`].
     ///
     /// <div class="warning">
     ///
@@ -256,10 +256,16 @@ pub trait Exhaust: Sized {
     /// this cannot be enforced; therefore, make sure it cannot bypass any invariants that
     /// the type might have.
     ///
-    /// It is acceptable for this function to panic if it is
-    /// given a value that [`Self::Iter`] is unable to produce.
-    ///
     /// </div>
+    ///
+    /// # Panics
+    ///
+    /// - This function may panic if given a factory value that is not one of the values
+    ///   [`Self::Iter`] is able to produce.
+    /// - This function may panic or abort if memory allocation that is required to construct
+    ///   [`Self`] fails.
+    ///
+    /// Implementations should not panic under any other circumstances.
     #[must_use]
     fn from_factory(factory: Self::Factory) -> Self;
 }
