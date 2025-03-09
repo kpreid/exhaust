@@ -4,7 +4,10 @@ use core::pin::Pin;
 use core::{fmt, iter};
 
 use crate::iteration::{peekable_exhaust, FlatZipMap};
-use crate::patterns::{factory_is_self, impl_newtype_generic, impl_singleton};
+use crate::patterns::{
+    delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_singleton,
+    impl_via_array,
+};
 use crate::Exhaust;
 
 use super::alloc_impls::{ExhaustMap, ExhaustSet, MapFactory};
@@ -143,8 +146,37 @@ mod sync {
     impl_newtype_generic!(T: [], sync::Mutex<T>, sync::Mutex::new);
     impl_newtype_generic!(T: [], sync::RwLock<T>, sync::RwLock::new);
 
+    impl_via_array!(
+        sync::mpsc::RecvTimeoutError,
+        [Self::Timeout, Self::Disconnected]
+    );
+    impl_via_array!(sync::mpsc::TryRecvError, [Self::Empty, Self::Disconnected]);
+    impl_singleton!([], sync::mpsc::RecvError, sync::mpsc::RecvError);
+    impl<T: Exhaust> Exhaust for sync::mpsc::TrySendError<T> {
+        delegate_factory_and_iter!(remote::TrySendError<T>);
+        fn from_factory(factory: Self::Factory) -> Self {
+            match remote::TrySendError::from_factory(factory) {
+                remote::TrySendError::Full(t) => Self::Full(t),
+                remote::TrySendError::Disconnected(t) => Self::Disconnected(t),
+            }
+        }
+    }
+    impl_newtype_generic!(T: [], sync::mpsc::SendError<T>, sync::mpsc::SendError);
+
     // TODO: Add `OnceLock` when we bump MSRV.
     //
-    // sync::Condvar is stateful in a way we cannot handle.
-    // sync::Once could be implemented, but is dubious.
+    // * sync::Condvar is stateful in a way we cannot handle.
+    // * sync::Once could be implemented, but is dubious.
+    // * sync::TryLockError could be implemented, but it doesn’t make sense to do so, since the
+    //   thing it is expected to contain is a lock guard, which we cannot construct.
+
+    mod remote {
+        #![allow(missing_debug_implementations)]
+
+        #[derive(crate::Exhaust)]
+        pub enum TrySendError<T> {
+            Full(T),
+            Disconnected(T),
+        }
+    }
 }

@@ -33,4 +33,3 @@ mod std_impls;
 //   core::iter::* (combinatorial explosion fun!)
 //     Iterators for std library types *not* in core::iter
 //   `OnceCell` & `OnceLock`
-//   Constructible error types
