@@ -63,10 +63,10 @@ mod io {
     use crate::patterns::delegate_factory_and_iter;
     use std::io;
 
+    /// Produces each combination of a buffer state and a cursor position, except for those
+    /// where the position is beyond the end of the buffer.
     impl<T: Exhaust + AsRef<[u8]> + Clone + fmt::Debug> Exhaust for io::Cursor<T> {
         type Iter = FlatZipMap<crate::Iter<T>, core::ops::RangeInclusive<u64>, io::Cursor<T>>;
-        /// Returns each combination of a buffer state and a cursor position, except for those
-        /// where the position is beyond the end of the buffer.
         fn exhaust_factories() -> Self::Iter {
             FlatZipMap::new(
                 T::exhaust(),
