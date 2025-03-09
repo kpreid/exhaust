@@ -1,6 +1,6 @@
 use std::iter;
 
-use itertools::{izip, Itertools as _};
+use itertools::izip;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
@@ -413,7 +413,7 @@ fn exhaust_iter_enum(
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
-    ) = e
+    ) = itertools::multiunzip(e
         .variants
         .iter()
         .zip(state_enum_progress_variants.iter())
@@ -480,8 +480,7 @@ fn exhaust_iter_enum(
             quote! {},
             quote! { compile_error!("done advancer not used") },
             quote! { compile_error!("done factory variant not used") },
-        )))
-        .multiunzip();
+        ))));
 
     factory_variant_decls.pop(); // no Done arm in the factory enum
 
