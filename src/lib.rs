@@ -56,28 +56,50 @@ pub mod test_compile_fail;
 ///
 /// # Properties
 ///
-/// Implementations should have the following properties:
+/// Implementations must have the following properties:
 ///
-/// * No duplicates: if [`Self: PartialEq`](PartialEq), then for any two items `a, b` produced
-///   by the iterator, `a != b`.
 /// * Exhaustiveness: If [`Self: PartialEq`](PartialEq), then for every value `a` of type
 ///   `Self`, there is some element `b` of `Self::exhaust()` for which `a == b`,
 ///   unless it is the case that `a != a`.
+///
 ///   If there is no `PartialEq` implementation, then follow the spirit of this rule anyway.
+///
+/// * No duplicates: if [`Self: PartialEq`](PartialEq), then for any two items `a, b` produced
+///   by the iterator, `a != b`.
+///
+///   If this rule comes into conflict with exhaustiveness, then exhaustiveness takes priority.
+///
 /// * If there is any value `a` of type `Self` for which `a != a`, then [`Exhaust`]
 ///   must produce one or more such values (e.g. [`f32::NAN`]).
-/// * `exhaust()` does not panic, nor does the iterator it returns,
-///   except in the event that memory allocation fails.
+///
+/// * The iterator has a finite length.
+///
+///   For example, collections which can contain arbitrary numbers of duplicate elements, like
+///   [`Vec`](alloc::vec::Vec), should not implement [`Exhaust`],
+///   because they cannot have an iterator which is both finite and exhaustive.
+///
 /// * Purity/determinism: every call to `Self::exhaust()`, or [`Clone::clone()`] of a returned
 ///   iterator or factory, should produce the same sequence of items.
+///
 ///   (If this is not upheld, then derived implementations of [`Exhaust`] on types containing
 ///   this type will not behave consistently.)
-/// * The iterator has a finite length, that is feasible to actually reach.
-///   (For example, [`u64`] does not implement [`Exhaust`].)
+///
+/// * `exhaust()` does not panic, nor does the iterator it returns,
+///   except in the event that memory allocation fails.
+///
+/// * All produced values should be valid according to `Self`’s invariants as enforced by its
+///   ordinary constructors. When the above properties refer to “a value of type `Self`”,
+///   they do not include invalid values.
 ///
 /// The following further properties are recommended when feasible:
 ///
 /// * If `Self: Ord`, then the items are sorted in ascending order.
+///
+/// * The iterator’s length makes it feasible to actually exhaust.
+///
+///   For example, [`u64`] does not implement [`Exhaust`].
+///   This may be infeasible to ensure in compositions; e.g. `[u16; 4]` is even more infeasible
+///   to exhaust than [`u64`].
 ///
 /// [`Exhaust`] is not an `unsafe trait`, and as such, no soundness property should rest
 /// on implementations having any of the above properties unless the particular implementation
@@ -85,7 +107,7 @@ pub mod test_compile_fail;
 ///
 /// # Examples
 ///
-/// Using [the derive macro](macro@Exhaust) to implement the trait:
+/// Using [`derive(Exhaust)`](macro@Exhaust) to implement the trait:
 ///
 /// ```
 #[doc = include_str!("example-derive-usage.rs")]
