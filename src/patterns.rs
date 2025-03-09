@@ -60,18 +60,32 @@ macro_rules! impl_singleton {
 }
 pub(crate) use impl_singleton;
 
-macro_rules! impl_via_array {
-    ($self:ty, $array:expr) => {
+macro_rules! impl_via_small_list {
+    ($self:ty, [$($item:expr),* $(,)?]) => {
         impl $crate::Exhaust for $self {
-            type Iter = ::core::array::IntoIter<Self, { $array.len() }>;
+            type Iter = ::core::array::IntoIter<Self, { [$($item,)*].len() }>;
             fn exhaust_factories() -> Self::Iter {
-                $array.into_iter()
+                [$($item,)*].into_iter()
             }
             $crate::patterns::factory_is_self!();
         }
+
+        impl $crate::Indexable for $self {
+            const VALUE_COUNT: usize = { [$($item,)*].len() };
+
+            fn to_index(value: &Self) -> usize {
+                // TODO: express this as a match instrad
+                [$($item,)*].iter().position(|x| x == value).unwrap()
+            }
+
+            fn from_index(index: usize) -> Self {
+                // TODO: express this as a match instrad
+                [$($item,)*][index]
+            }
+        }
     };
 }
-pub(crate) use impl_via_array;
+pub(crate) use impl_via_small_list;
 
 macro_rules! impl_via_range {
     ($self:ty, $start:expr, $end:expr) => {

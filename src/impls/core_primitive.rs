@@ -2,8 +2,8 @@ use core::{fmt, iter};
 
 use crate::iteration::{carry, peekable_exhaust};
 use crate::patterns::{
-    delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_via_array,
-    impl_via_range,
+    delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_via_range,
+    impl_via_small_list,
 };
 use crate::Exhaust;
 
@@ -22,7 +22,7 @@ impl_newtype_generic!(T: [], (T,), |x| (x,));
 // 12 was chosen as the same size the standard library offers.
 exhaust_macros::impl_exhaust_for_tuples!(12);
 
-impl_via_array!(bool, [false, true]);
+impl_via_small_list!(bool, [false, true]);
 
 impl_via_range!(char, '\x00', char::MAX);
 impl_via_range!(i8, i8::MIN, i8::MAX);
