@@ -157,6 +157,21 @@ fn impl_result() {
     check(vec![Ok(false), Ok(true), Err(false), Err(true)]);
 }
 
+mod impl_cell {
+    use super::*;
+    use core::cell;
+
+    #[test]
+    fn impl_once_cell() {
+        assert_eq!(
+            cell::OnceCell::<bool>::exhaust()
+                .map(|cell| cell.get().copied())
+                .collect::<Vec<_>>(),
+            vec![None, Some(false), Some(true)],
+        );
+    }
+}
+
 mod impl_fmt {
     use super::*;
 

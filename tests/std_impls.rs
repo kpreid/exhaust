@@ -1,5 +1,6 @@
 extern crate std;
 use std::io::Cursor;
+use std::sync;
 
 use exhaust::Exhaust;
 
@@ -22,4 +23,14 @@ fn impl_cursor() {
         ]
     );
     assert_eq!(Cursor::<[u8; 2]>::exhaust().count(), 256 * 256 * 3);
+}
+
+#[test]
+fn impl_sync_once_lock() {
+    assert_eq!(
+        sync::OnceLock::<bool>::exhaust()
+            .map(|cell| cell.get().copied())
+            .collect::<Vec<_>>(),
+        vec![None, Some(false), Some(true)],
+    );
 }

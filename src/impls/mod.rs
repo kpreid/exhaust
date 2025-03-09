@@ -28,8 +28,3 @@ mod alloc_impls;
 
 #[cfg(feature = "std")]
 mod std_impls;
-
-// TODO: The following implementations might be missing:
-//   core::iter::* (combinatorial explosion fun!)
-//     Iterators for std library types *not* in core::iter
-//   `OnceCell` & `OnceLock`

@@ -146,6 +146,21 @@ mod sync {
     impl_newtype_generic!(T: [], sync::Mutex<T>, sync::Mutex::new);
     impl_newtype_generic!(T: [], sync::RwLock<T>, sync::RwLock::new);
 
+    impl<T: Exhaust> Exhaust for sync::OnceLock<T> {
+        delegate_factory_and_iter!(Option<T>);
+
+        fn from_factory(factory: Self::Factory) -> Self {
+            let cell = sync::OnceLock::new();
+            if let Some(value) = Option::<T>::from_factory(factory) {
+                match cell.set(value) {
+                    Ok(()) => {}
+                    Err(_) => unreachable!(),
+                }
+            }
+            cell
+        }
+    }
+
     impl_via_array!(
         sync::mpsc::RecvTimeoutError,
         [Self::Timeout, Self::Disconnected]
