@@ -1,4 +1,3 @@
-use itertools::Itertools as _;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
 
@@ -55,46 +54,40 @@ pub(crate) fn exhaust_iter_fields(
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
-    ) = struct_fields
-        .iter()
-        .enumerate()
-        .map(|(index, field)| {
-            let target_field_name = match &field.ident {
-                Some(name) => name.to_token_stream(),
-                None => {
-                    syn::LitInt::new(&format!("{}", index), Span::mixed_site()).to_token_stream()
-                }
-            };
+    ) = itertools::multiunzip(struct_fields.iter().enumerate().map(|(index, field)| {
+        let target_field_name = match &field.ident {
+            Some(name) => name.to_token_stream(),
+            None => syn::LitInt::new(&format!("{}", index), Span::mixed_site()).to_token_stream(),
+        };
 
-            // Generate a field name to use in the iterator. By renaming the fields we ensure
-            // they won't conflict with variables used in the rest of the iterator code.
-            let iter_field_name = Ident::new(
-                &match &field.ident {
-                    Some(name) => format!("iter_f_{}", name),
-                    None => format!("iter_f_{}", index),
-                },
-                Span::mixed_site(),
-            )
-            .to_token_stream();
+        // Generate a field name to use in the iterator. By renaming the fields we ensure
+        // they won't conflict with variables used in the rest of the iterator code.
+        let iter_field_name = Ident::new(
+            &match &field.ident {
+                Some(name) => format!("iter_f_{}", name),
+                None => format!("iter_f_{}", index),
+            },
+            Span::mixed_site(),
+        )
+        .to_token_stream();
 
-            let field_type = &field.ty;
+        let field_type = &field.ty;
 
-            (
-                quote! {
-                    #iter_field_name : #crate_path::iteration::Pei<#field_type>
-                },
-                quote! {
-                    #iter_field_name : #crate_path::iteration::peekable_exhaust::<#field_type>()
-                },
-                quote! {
-                    #iter_field_name : ::core::clone::Clone::clone(#iter_field_name)
-                },
-                iter_field_name,
-                target_field_name,
-                field_type.clone().to_token_stream(),
-            )
-        })
-        .multiunzip();
+        (
+            quote! {
+                #iter_field_name : #crate_path::iteration::Pei<#field_type>
+            },
+            quote! {
+                #iter_field_name : #crate_path::iteration::peekable_exhaust::<#field_type>()
+            },
+            quote! {
+                #iter_field_name : ::core::clone::Clone::clone(#iter_field_name)
+            },
+            iter_field_name,
+            target_field_name,
+            field_type.clone().to_token_stream(),
+        )
+    }));
 
     let factory_field_decls = match struct_fields {
         syn::Fields::Named(fields) => syn::Fields::Named(syn::FieldsNamed {
