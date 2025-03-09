@@ -3,7 +3,7 @@ use core::num;
 
 use paste::paste;
 
-use crate::patterns::{impl_newtype_generic, impl_via_small_array};
+use crate::patterns::{impl_newtype_generic, impl_via_small_list};
 use crate::Exhaust;
 
 macro_rules! impl_nonzero {
@@ -43,7 +43,7 @@ impl_nonzero!(u8, NonZeroU8);
 impl_nonzero!(u16, NonZeroU16);
 impl_nonzero!(u32, NonZeroU32);
 
-impl_via_small_array!(
+impl_via_small_list!(
     num::FpCategory,
     [
         Self::Nan,
