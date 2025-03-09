@@ -40,9 +40,11 @@ mutants = "0.0.3"
 paste = "1.0.5"
 
 [workspace.dependencies]
-# Note!!! It would be nice if we could use a wide range of itertools versions,
-# but there is a bug fixed in 0.13.0, <https://github.com/rust-itertools/itertools/issues/337>,
-# which affects `ExhaustHashMap` and `ExhaustBTreeMap`, so it actually matters that we have 0.13.0
-# here. But when 0.14.0 is released, consider changing this to `>=0.13.0, <0.15.0` so that we can
-# allow dependents to stay off the upgrade treadmill without duplicating versions.
-itertools = { version = "0.13.0", default-features = false, features = ["use_alloc"] }
+# Minimum version of `itertools` is 0.13.0 because we need this bug fixed,
+#   <https://github.com/rust-itertools/itertools/issues/337>,
+# which affects `ExhaustMap`. 0.14 is the current latest version, which contains no breaking
+# changes relevant to our usages: according to the changelog,
+#   * Increased MSRV to 1.63.0
+#   * Removed generic parameter from cons_tuples
+# neither of which affects us.
+itertools = { version = ">=0.13.0, <0.15", default-features = false, features = ["use_alloc"] }
