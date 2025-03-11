@@ -210,12 +210,31 @@ pub trait Exhaust: Sized {
     /// Data which can be used to construct `Self`.
     ///
     /// The difference between `Self` and `Self::Factory` is that the `Factory` must
-    /// implement [`Clone`] even if `Self` does not. In the case where `Self` does implement
-    /// [`Clone`], this can be set equal to `Self`.
+    /// implement [`Clone`], while `Self` is not required to.
+    /// This is relevant to, and motivated by, the following cases:
     ///
-    /// Factories are useful for implementing [`Exhaust`] for other types that contain this type,
-    /// when this type does not implement [`Clone`],
-    /// since the process will often require producing clones.
+    /// * Types which do not implement [`Clone`], or which conditionally implement [`Clone`],
+    ///   can still implement [`Exhaust`] by providing a `Factory` type which is not `Self`.
+    ///   For example, interior-mutable types often do not implement [`Clone`], or implement it
+    ///   so as to make a new handle to existing shared state; those types should choose a
+    ///   `Factory` type which represents their initial state only.
+    ///
+    /// * Generic containers of two or more values need to generate all combinations of their
+    ///   values.
+    ///   The guarantee that the contents’ `Factory` is [`Clone`] allows them to use clones of the
+    ///   factories to perform this iteration straightforwardly.
+    ///   (It would be theoretically possible to avoid this by cloning the exhausting iterators
+    ///   themselves, but much more complex and difficult to implement correctly.)
+    ///   For example, `[AtomicBool; 2]` ends up using `[bool; 2]` as its factory, which
+    ///   implements [`Clone`] even though [`AtomicBool`](core::sync::atomic::AtomicBool) does not.
+    ///
+    /// * A lot of wrapper types can easily implement [`Exhaust`] by delegating to another
+    ///   iterator and merely implementing [`Self::from_factory()`] to add the wrapper.
+    ///   This is not more powerful than use of [`Iterator::map()`], but it is often more
+    ///   convenient.
+    ///
+    /// Types which implement [`Clone`] and are not generic can use `type Factory = Self;`
+    /// if they wish.
     ///
     /// <div class="warning">
     ///
