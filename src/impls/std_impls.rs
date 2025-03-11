@@ -6,7 +6,7 @@ use core::{fmt, iter};
 use crate::iteration::{peekable_exhaust, FlatZipMap};
 use crate::patterns::{
     delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_singleton,
-    impl_via_array,
+    impl_via_small_list,
 };
 use crate::Exhaust;
 
@@ -161,11 +161,11 @@ mod sync {
         }
     }
 
-    impl_via_array!(
+    impl_via_small_list!(
         sync::mpsc::RecvTimeoutError,
         [Self::Timeout, Self::Disconnected]
     );
-    impl_via_array!(sync::mpsc::TryRecvError, [Self::Empty, Self::Disconnected]);
+    impl_via_small_list!(sync::mpsc::TryRecvError, [Self::Empty, Self::Disconnected]);
     impl_singleton!([], sync::mpsc::RecvError, sync::mpsc::RecvError);
     impl<T: Exhaust> Exhaust for sync::mpsc::TrySendError<T> {
         delegate_factory_and_iter!(remote::TrySendError<T>);
