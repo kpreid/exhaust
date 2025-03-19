@@ -1,7 +1,8 @@
 use crate::Exhaust;
 
 /// Types whose values can be mapped to integer indices.
-pub trait Indexable: Exhaust<Iter: ExactSizeIterator> {
+// TODO: Enable the ExactSizeIterator bound when we are done prototyping
+pub trait Indexable: Exhaust /*<Iter: ExactSizeIterator>*/ {
     /// Number of distinct values of this type.
     /// Equivalent to `Self::exhaust().len()`, but is a constant.
     const VALUE_COUNT: usize;
