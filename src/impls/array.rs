@@ -1,7 +1,7 @@
 use core::{fmt, iter};
 
 use crate::iteration::{carry, peekable_exhaust};
-use crate::Exhaust;
+use crate::{Exhaust, Indexable};
 
 impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
     type Iter = ExhaustArray<T, N>;
@@ -14,6 +14,50 @@ impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
     }
     fn from_factory(factory: Self::Factory) -> Self {
         factory.map(T::from_factory)
+    }
+}
+
+impl<T: Indexable, const N: usize> Indexable for [T; N] {
+    #[mutants::skip]
+    const VALUE_COUNT: usize = {
+        #[allow(clippy::cast_possible_truncation)]
+        let n = if N as u128 > u32::MAX as u128 {
+            panic!("array length too large for Indexable");
+        } else {
+            N as u32
+        };
+
+        match T::VALUE_COUNT.checked_pow(n) {
+            Some(count) => count,
+            // Ideally, we would print the value, but formatting in const expressions is not
+            // yet allowed.
+            None => panic!("total value count too large for Indexable"),
+        }
+    };
+
+    fn to_index(array: &Self) -> usize {
+        let mut value_index = 0;
+        // Same algorithm as assembling digits into a number.
+        for element in array {
+            value_index *= T::VALUE_COUNT;
+            value_index += T::to_index(element);
+        }
+        value_index
+    }
+
+    fn from_index(mut index: usize) -> Self {
+        // Note: We could skip `indices` and build the final array in-place, but there
+        // is no reverse counterpart to `core::array::from_fn()`, so we'd need one of
+        // *  unsafe and `MaybeUninit` to fill the array backwards,
+        // * exponentiation to obtain the “digits” in forward order, or
+        // * reversing the array of `T` afterward.
+        // For now, this is boring and correct and has O(N) space overhead, not O(N*size_of(T)).
+        let mut indices: [usize; N] = [0; N];
+        for element_index in indices.iter_mut().rev() {
+            *element_index = index.rem_euclid(T::VALUE_COUNT);
+            index = index.div_euclid(T::VALUE_COUNT);
+        }
+        indices.map(T::from_index)
     }
 }
 
