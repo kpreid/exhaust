@@ -4,7 +4,7 @@ use core::fmt;
 use core::num;
 use core::ops;
 
-use exhaust::Exhaust;
+use exhaust::{Exhaust, Indexable};
 
 use crate::helper::{check, check_double, check_double_exact, check_indexable};
 
@@ -50,12 +50,14 @@ fn impl_phantom_data() {
 #[test]
 fn impl_infallible() {
     check_double_exact(Vec::<core::convert::Infallible>::new());
+    check_indexable::<core::convert::Infallible>();
     assert_eq!(size_of_val(&core::convert::Infallible::exhaust()), 0);
 }
 
 #[test]
 fn impl_bool() {
     check_double_exact(vec![false, true]);
+    check_indexable::<bool>();
     assert_eq!(size_of_val(&<bool>::exhaust()), 1);
 }
 
@@ -201,6 +203,7 @@ mod impl_cell {
     #[test]
     fn impl_cell() {
         check_double_exact(vec![Cell::new(false), Cell::new(true)]);
+        check_indexable::<Cell<bool>>();
     }
 
     #[test]
