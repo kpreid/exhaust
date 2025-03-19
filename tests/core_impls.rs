@@ -1,6 +1,6 @@
 use core::{fmt, num, ops};
 
-use exhaust::Exhaust;
+use exhaust::{Exhaust, Indexable};
 
 mod helper;
 use helper::{check, check_double};
@@ -132,6 +132,15 @@ fn impl_array_of_2() {
         [true, false],
         [true, true],
     ]);
+}
+
+#[test]
+fn array_indexable_near_usize_max() {
+    const N: usize = size_of::<usize>() - 1;
+    assert_eq!(
+        <[u8; N]>::VALUE_COUNT,
+        256usize.pow(u32::try_from(N).unwrap())
+    );
 }
 
 #[test]
