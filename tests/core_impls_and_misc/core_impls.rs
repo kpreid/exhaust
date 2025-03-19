@@ -4,7 +4,7 @@ use core::fmt;
 use core::num;
 use core::ops;
 
-use exhaust::Exhaust;
+use exhaust::{Exhaust, Indexable};
 
 use crate::helper::{check, check_double, check_double_exact};
 
@@ -135,6 +135,15 @@ fn impl_array_of_2() {
         [true, false],
         [true, true],
     ]);
+}
+
+#[test]
+fn array_indexable_near_usize_max() {
+    const N: usize = size_of::<usize>() - 1;
+    assert_eq!(
+        <[u8; N]>::VALUE_COUNT,
+        256usize.pow(u32::try_from(N).unwrap())
+    );
 }
 
 #[test]
