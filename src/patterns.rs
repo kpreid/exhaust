@@ -60,25 +60,73 @@ macro_rules! impl_singleton {
 }
 pub(crate) use impl_singleton;
 
-macro_rules! impl_via_array {
-    ($self:ty, $array:expr) => {
+macro_rules! impl_via_small_list {
+    ($self:ty, [$($item:path),* $(,)?]) => {
         impl $crate::Exhaust for $self {
-            type Iter = ::core::array::IntoIter<Self, { $array.len() }>;
+            type Iter = ::core::array::IntoIter<Self, { [$($item,)*].len() }>;
             fn exhaust_factories() -> Self::Iter {
-                $array.into_iter()
+                // TODO: This produces a more complex iterator than necessary
+                [$($item,)*].into_iter()
             }
             $crate::patterns::factory_is_self!();
         }
+
+        impl $crate::Indexable for $self {
+            const VALUE_COUNT: usize = { [$($item,)*].len() };
+
+            fn to_index(value: &Self) -> usize {
+                $crate::patterns::match_to_index!(value ; $($item),*)
+            }
+
+            fn from_index(index: usize) -> Self {
+                (const { &[$($item,)*] }[index])
+            }
+        }
     };
 }
-pub(crate) use impl_via_array;
+pub(crate) use impl_via_small_list;
+
+// Helper for impl_via_small_list
+macro_rules! match_to_index {
+    ($var:ident ; $p0:path, $p1:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path, $p3:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+            $p3 => 3,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path, $p3:path, $p4:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+            $p3 => 3,
+            $p4 => 4,
+        }
+    };
+}
+pub(crate) use match_to_index;
 
 macro_rules! impl_via_range {
     ($self:ty, $start:expr, $end:expr) => {
         impl $crate::Exhaust for $self {
             type Iter = ::core::ops::RangeInclusive<$self>;
             fn exhaust_factories() -> Self::Iter {
-                (($start)..=($end))
+                $start..=$end
             }
             $crate::patterns::factory_is_self!();
         }
