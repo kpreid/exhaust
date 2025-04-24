@@ -1,7 +1,7 @@
 use core::iter;
 use core::num::{self, NonZero};
 
-use crate::patterns::{impl_newtype_generic, impl_via_array};
+use crate::patterns::{impl_newtype_generic, impl_via_small_list};
 use crate::Exhaust;
 
 // -------------------------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ impl<T: Exhaust, N> iter::FusedIterator for ExhaustNonZero<T, N> {}
 
 // -------------------------------------------------------------------------------------------------
 
-impl_via_array!(
+impl_via_small_list!(
     num::FpCategory,
     [
         Self::Nan,
