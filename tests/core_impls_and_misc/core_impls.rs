@@ -11,6 +11,7 @@ use crate::helper::{check, check_double, check_double_exact, check_indexable};
 #[test]
 fn impl_unit() {
     check_double_exact(vec![()]);
+    check_indexable::<()>();
     assert_eq!(size_of_val(&<()>::exhaust()), 1);
 }
 
@@ -40,6 +41,7 @@ fn impl_nontrivial_tuple() {
 fn impl_phantom_data() {
     use core::marker::PhantomData;
     check_double_exact::<PhantomData<bool>>(vec![PhantomData]);
+    check_indexable::<PhantomData<bool>>();
     assert_eq!(size_of_val(&<PhantomData<bool>>::exhaust()), 1);
 }
 
@@ -259,6 +261,7 @@ mod impl_fmt {
     #[test]
     fn impl_error() {
         check_double(vec![fmt::Error]);
+        check_indexable::<fmt::Error>();
     }
 }
 
