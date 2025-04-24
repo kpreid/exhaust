@@ -31,20 +31,11 @@ pub(crate) use delegate_factory_and_iter;
 
 /// Implementation for types with exactly one value.
 macro_rules! impl_singleton {
-    // if Default is implemented
+    // For use if Default is implemented
     ([$($generics:tt)*], $self:ty) => {
-        impl<$($generics)*> $crate::Exhaust for $self {
-            type Iter = ::core::iter::Once<()>;
-            type Factory = ();
-            fn exhaust_factories() -> Self::Iter {
-                ::core::iter::once(())
-            }
-            fn from_factory((): Self::Factory) -> Self {
-                ::core::default::Default::default()
-            }
-        }
+        $crate::patterns::impl_singleton!([$($generics)*], $self, ::core::default::Default::default());
     };
-    // if Default is not implemented
+    // For use if Default is not implemented
     ([$($generics:tt)*], $self:ty, $ctor:expr) => {
         impl<$($generics)*> $crate::Exhaust for $self {
             type Iter = ::core::iter::Once<()>;
@@ -53,6 +44,20 @@ macro_rules! impl_singleton {
                 ::core::iter::once(())
             }
             fn from_factory((): Self::Factory) -> Self {
+                $ctor
+            }
+        }
+
+        impl<$($generics)*> $crate::Indexable for $self {
+            const VALUE_COUNT: usize = 1;
+
+            fn to_index(value: &Self) -> usize {
+                let _ = value;
+                0
+            }
+
+            fn from_index(index: usize) -> Self {
+                assert!(index == 0);
                 $ctor
             }
         }
