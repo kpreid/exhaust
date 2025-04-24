@@ -118,10 +118,10 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
     }
 
     let value_type_vars: Vec<Ident> = (0..size)
-        .map(|i| Ident::new(&format!("T{}", i), Span::mixed_site()))
+        .map(|i| Ident::new(&format!("T{i}"), Span::mixed_site()))
         .collect();
     let factory_value_vars: Vec<Ident> = (0..size)
-        .map(|i| Ident::new(&format!("factory{}", i), Span::mixed_site()))
+        .map(|i| Ident::new(&format!("factory{i}"), Span::mixed_site()))
         .collect();
     let synthetic_fields: syn::Fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
         paren_token: syn::token::Paren(Span::mixed_site()),
