@@ -6,7 +6,7 @@ use core::ops;
 
 use exhaust::Exhaust;
 
-use crate::helper::{check, check_double, check_double_exact};
+use crate::helper::{check, check_double, check_double_exact, check_indexable};
 
 #[test]
 fn impl_unit() {
@@ -170,6 +170,7 @@ fn impl_array_of_3() {
 fn impl_ordering() {
     use core::cmp::Ordering;
     check_double_exact(vec![Ordering::Less, Ordering::Equal, Ordering::Greater]);
+    check_indexable::<Ordering>();
     assert_eq!(size_of_val(&Ordering::exhaust()), 2);
 }
 
@@ -263,6 +264,19 @@ mod impl_fmt {
 
 mod impl_num {
     use super::*;
+
+    #[test]
+    fn impl_fpcategory() {
+        use core::num::FpCategory as Cat;
+        check_double_exact(vec![
+            Cat::Nan,
+            Cat::Infinite,
+            Cat::Zero,
+            Cat::Subnormal,
+            Cat::Normal,
+        ]);
+        check_indexable::<Cat>();
+    }
 
     #[test]
     fn impl_saturating() {
