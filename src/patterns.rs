@@ -63,7 +63,7 @@ pub(crate) use impl_singleton;
 /// Implement `Exhaust` for `$self` by iterating over the given array.
 /// The array must have no more than `u8::MAX - 1` (254) elements.
 macro_rules! impl_via_array {
-    ($self:ty, $array:expr) => {
+    ($self:ty, [$($item:path),* $(,)?]) => {
         // block to hide the non-uniquely named items
         const _: () = {
             impl $crate::Exhaust for $self {
@@ -80,7 +80,19 @@ macro_rules! impl_via_array {
                 $crate::patterns::factory_is_self!();
             }
 
-            const VALUES: &[$self; $array.len()] = &$array;
+            impl $crate::Indexable for $self {
+                const VALUE_COUNT: usize = VALUES.len();
+
+                fn to_index(value: &Self) -> usize {
+                    $crate::patterns::match_to_index!(value ; $($item),*)
+                }
+
+                fn from_index(index: usize) -> Self {
+                    VALUES[index]
+                }
+            }
+
+            const VALUES: &[$self; [$($item),*].len()] = &[$($item),*];
 
             // Opaque iterator struct for this particular `Exhaust` implementation.
             // Public-in-private type as a substitute for associated type `impl Iterator`.
@@ -124,12 +136,47 @@ macro_rules! impl_via_array {
 }
 pub(crate) use impl_via_array;
 
+// Helper for impl_via_array
+macro_rules! match_to_index {
+    ($var:ident ; $p0:path, $p1:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path, $p3:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+            $p3 => 3,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path, $p3:path, $p4:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+            $p3 => 3,
+            $p4 => 4,
+        }
+    };
+}
+pub(crate) use match_to_index;
+
 macro_rules! impl_via_range {
     ($self:ty, $start:expr, $end:expr) => {
         impl $crate::Exhaust for $self {
             type Iter = ::core::ops::RangeInclusive<$self>;
             fn exhaust_factories() -> Self::Iter {
-                (($start)..=($end))
+                $start..=$end
             }
             $crate::patterns::factory_is_self!();
         }
