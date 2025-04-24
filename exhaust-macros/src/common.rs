@@ -102,20 +102,19 @@ impl ExhaustContext {
         match &self.item_type {
             // TODO: No tests to validate this doc link
             ConstructorSyntax::Braced(name) => format!(
-                "Iterator over all values of [`{}`].\n\
+                "Iterator over all values of [`{name}`].\n\
                 \n\
                 To obtain an instance of this iterator, call [`Exhaust::exhaust()`].\n\
                 \n\
-                [`Exhaust::exhaust()`]: {}::Exhaust",
-                name,
-                self.exhaust_crate_path.to_token_stream()
+                [`Exhaust::exhaust()`]: {crate}::Exhaust",
+                crate = self.exhaust_crate_path.to_token_stream(),
             ),
             ConstructorSyntax::Tuple => {
                 format!(
-                    "Iterator over all tuples of {} elements.\n\
+                    "Iterator over all tuples of {len} elements.\n\
                     \n\
                     To obtain an instance of this iterator, call [`Exhaust::exhaust()`].",
-                    self.generics.params.len()
+                    len = self.generics.params.len(),
                 )
             }
         }
