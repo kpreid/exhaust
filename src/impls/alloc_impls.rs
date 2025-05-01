@@ -1,4 +1,5 @@
 use core::iter::FusedIterator;
+use core::ops::Deref;
 use core::pin::Pin;
 use core::{fmt, iter};
 
@@ -11,13 +12,13 @@ use alloc::vec::Vec;
 use itertools::Itertools as _;
 
 use crate::iteration::peekable_exhaust;
-use crate::patterns::{delegate_factory_and_iter, impl_newtype_generic};
+use crate::patterns::{delegate_factory_and_iter, impl_newtype_generic_indexable};
 use crate::Exhaust;
 
-impl_newtype_generic!(T: [], Box<T>, Box::new);
-impl_newtype_generic!(T: [], Rc<T>, Rc::new);
-impl_newtype_generic!(T: [], Pin<Box<T>>, Box::pin);
-impl_newtype_generic!(T: [], Pin<Rc<T>>, Rc::pin);
+impl_newtype_generic_indexable!(T: [], Box<T>, Box::new, Deref::deref);
+impl_newtype_generic_indexable!(T: [], Rc<T>, Rc::new, Deref::deref);
+impl_newtype_generic_indexable!(T: [], Pin<Box<T>>, Box::pin, Deref::deref);
+impl_newtype_generic_indexable!(T: [], Pin<Rc<T>>, Rc::pin, Deref::deref);
 
 /// Note that this implementation necessarily ignores the borrowed versus owned distinction;
 /// every value returned will be a [`Cow::Owned`], not a [`Cow::Borrowed`].
