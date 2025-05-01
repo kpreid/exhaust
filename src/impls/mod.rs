@@ -6,6 +6,10 @@
 //!
 //! [`Exhaust`]: crate::Exhaust
 
+// Impls for primitive types.
+mod array;
+mod primitive;
+
 // Impls organized by the corresponding standard library module.
 mod core_cell;
 mod core_cmp;
@@ -19,7 +23,6 @@ mod core_ops;
 mod core_option;
 mod core_sync;
 //  core::pin::Pin is handled separately for each pinnable smart pointer.
-mod core_primitive;
 mod core_result;
 mod core_task;
 
