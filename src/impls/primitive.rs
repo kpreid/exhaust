@@ -1,12 +1,15 @@
 use crate::patterns::{
-    delegate_factory_and_iter, impl_newtype_generic, impl_singleton, impl_via_range,
+    delegate_factory_and_iter, impl_newtype_generic_indexable, impl_singleton, impl_via_range,
 };
 use crate::Exhaust;
 
 impl_singleton!([], ());
 
 // Implement single-element tuples in the same way we implement other generic containers.
-impl_newtype_generic!(T: [], (T,), |x| (x,));
+impl_newtype_generic_indexable!(T: [], (T,), |x| (x,), tuple_1_get);
+fn tuple_1_get<T>(value: &(T,)) -> &T {
+    &value.0
+}
 
 // Generates tuple implementations from 2 to 12 items.
 // 12 was chosen as the same size the standard library offers.
