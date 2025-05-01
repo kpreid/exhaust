@@ -13,6 +13,18 @@ impl crate::Exhaust for bool {
     crate::patterns::factory_is_self!();
 }
 
+impl crate::Indexable for bool {
+    const VALUE_COUNT: usize = 2;
+
+    fn to_index(value: &Self) -> usize {
+        usize::from(*value)
+    }
+
+    fn from_index(index: usize) -> Self {
+        [false, true][index]
+    }
+}
+
 #[derive(Clone, Debug)]
 pub /*-in-private*/ struct ExhaustBool(State);
 
