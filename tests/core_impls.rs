@@ -159,15 +159,52 @@ fn impl_result() {
 
 mod impl_cell {
     use super::*;
-    use core::cell;
+    use core::cell::{Cell, OnceCell, RefCell, UnsafeCell};
+
+    #[test]
+    fn impl_cell() {
+        check(vec![Cell::new(false), Cell::new(true)]);
+    }
+
+    #[test]
+    fn impl_ref_cell() {
+        check(vec![RefCell::new(false), RefCell::new(true)]);
+    }
 
     #[test]
     fn impl_once_cell() {
+        check(vec![
+            OnceCell::new(),
+            {
+                let c = OnceCell::new();
+                c.set(false).unwrap();
+                c
+            },
+            {
+                let c = OnceCell::new();
+                c.set(true).unwrap();
+                c
+            },
+        ]);
+
+        // Since OnceCell is weird, let's separately check its actual values.
         assert_eq!(
-            cell::OnceCell::<bool>::exhaust()
+            OnceCell::<bool>::exhaust()
                 .map(|cell| cell.get().copied())
                 .collect::<Vec<_>>(),
             vec![None, Some(false), Some(true)],
+        );
+    }
+
+    #[test]
+    fn impl_unsafe_cell() {
+        // We can't use `check()` because `UnsafeCell` rightly does not implement `PartialEq`.
+
+        assert_eq!(
+            UnsafeCell::<bool>::exhaust()
+                .map(UnsafeCell::into_inner)
+                .collect::<Vec<_>>(),
+            vec![false, true],
         );
     }
 }
