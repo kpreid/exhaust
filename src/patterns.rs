@@ -158,3 +158,25 @@ macro_rules! impl_newtype_generic {
     };
 }
 pub(crate) use impl_newtype_generic;
+
+macro_rules! impl_newtype_generic_indexable {
+    ($tvar:ident : [ $( $bounds:tt )* ] , $container:ty, $wrap_fn:expr, $unwrap_ref_fn:expr) => {
+        $crate::patterns::impl_newtype_generic!($tvar : [ $( $bounds )* ] , $container, $wrap_fn);
+
+        impl<$tvar: $crate::Indexable> $crate::Indexable for $container
+        where
+            $tvar: $( $bounds )*
+        {
+            const VALUE_COUNT: usize = <$tvar as $crate::Indexable>::VALUE_COUNT;
+
+            fn to_index(value: &Self) -> usize {
+                <$tvar as $crate::Indexable>::to_index($unwrap_ref_fn(value))
+            }
+
+            fn from_index(index: usize) -> Self {
+                $wrap_fn(<$tvar as $crate::Indexable>::from_index(index))
+            }
+        }
+    };
+}
+pub(crate) use impl_newtype_generic_indexable;
