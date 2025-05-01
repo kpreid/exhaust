@@ -1,7 +1,7 @@
 use core::iter;
 use core::num::{self, NonZero};
 
-use crate::patterns::{impl_newtype_generic, impl_via_small_list};
+use crate::patterns::{impl_newtype_generic_indexable, impl_via_small_list};
 use crate::Exhaust;
 
 // -------------------------------------------------------------------------------------------------
@@ -67,4 +67,7 @@ impl_via_small_list!(
     ]
 );
 
-impl_newtype_generic!(T: [], num::Wrapping<T>, num::Wrapping);
+impl_newtype_generic_indexable!(T: [], num::Wrapping<T>, num::Wrapping, wrap_get);
+fn wrap_get<T>(value: &core::num::Wrapping<T>) -> &T {
+    &value.0
+}
