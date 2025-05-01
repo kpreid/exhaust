@@ -8,6 +8,7 @@
 
 // Impls for primitive types.
 mod array;
+mod bool;
 mod primitive;
 
 // Impls organized by the corresponding standard library module.
