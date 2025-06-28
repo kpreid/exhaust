@@ -7,6 +7,7 @@ extern crate std;
 
 mod helper;
 
+// Don’t glob import the std prelude, so that we check the macro doesn't depend on it.
 use std::prelude::rust_2021 as p;
 
 fn c<T: std::fmt::Debug + exhaust::Exhaust>() -> std::vec::Vec<T>
@@ -16,19 +17,18 @@ where
     let mut iterator = T::exhaust();
     let mut result = std::vec::Vec::new();
     let size_hint = p::Iterator::size_hint(&iterator);
-    std::println!("Initial iterator state {:?}", iterator);
+    std::println!("Initial iterator state {iterator:?}");
     while let p::Some(item) = p::Iterator::next(&mut iterator) {
         std::println!("{}. {:?} from {:?}", result.len(), item, iterator);
         if result.len() >= 10 {
             std::panic!(
-                "exhaustive iterator didn't stop when expected;\nlast item: {:#?}\nstate: {:#?}",
-                item,
-                iterator
+                "exhaustive iterator didn't stop when expected;\n\
+                 last item: {item:#?}\nstate: {iterator:#?}"
             );
         }
         result.push(item);
     }
-    std::println!("Final iterator state {:?}", iterator);
+    std::println!("Final iterator state {iterator:?}");
 
     helper::assert_size_hint_valid(size_hint, result.len());
 
