@@ -52,6 +52,18 @@ fn impl_bool() {
 }
 
 #[test]
+fn impl_i8() {
+    check_double((i8::MIN..=i8::MAX).collect());
+    check_indexable::<i8>();
+}
+
+#[test]
+fn impl_u8() {
+    check_double((u8::MIN..=u8::MAX).collect());
+    check_indexable::<u8>();
+}
+
+#[test]
 fn impl_f32() {
     // We can't exhaustively test it but we can check some easy properties.
     assert_eq!(f32::exhaust().next(), Some(0.0));
