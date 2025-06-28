@@ -1,7 +1,7 @@
 use crate::patterns::{
     delegate_factory_and_iter, impl_newtype_generic_indexable, impl_singleton, impl_via_range,
 };
-use crate::Exhaust;
+use crate::{Exhaust, Indexable};
 
 impl_singleton!([], ());
 
@@ -31,3 +31,36 @@ impl Exhaust for f32 {
         f32::from_bits(factory)
     }
 }
+
+impl Indexable for u8 {
+    const VALUE_COUNT: usize = 1 << Self::BITS as usize;
+
+    fn to_index(value: &Self) -> usize {
+        usize::from(*value)
+    }
+
+    fn from_index(index: usize) -> Self {
+        #![allow(clippy::cast_possible_truncation)]
+        Self::try_from(index).unwrap()
+    }
+}
+
+impl Indexable for i8 {
+    const VALUE_COUNT: usize = 1 << Self::BITS as usize;
+
+    fn to_index(value: &Self) -> usize {
+        #![allow(clippy::cast_sign_loss)]
+        // TODO: When MSRV >= 1.87, express this as usize::from(....cast_unsigned())
+        value.wrapping_sub(Self::MIN) as u8 as usize
+    }
+
+    fn from_index(index: usize) -> Self {
+        #![allow(clippy::cast_possible_truncation)]
+        assert!(index < Self::VALUE_COUNT);
+        (index as Self).wrapping_add(Self::MIN)
+    }
+}
+
+// Larger integers cannot implement `Indexable` because their `VALUE_COUNT` cannot be losslessly
+// converted to `usize`.
+// TODO: Consider adding a pragmatic conditional impl for `i16`/`u16`.
