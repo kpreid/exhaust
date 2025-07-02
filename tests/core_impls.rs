@@ -3,11 +3,12 @@ use core::{fmt, num, ops};
 use exhaust::Exhaust;
 
 mod helper;
-use helper::{check, check_double};
+use helper::{check, check_double, check_indexable};
 
 #[test]
 fn impl_unit() {
     check_double(vec![()]);
+    check_indexable::<()>();
 }
 
 #[test]
@@ -33,6 +34,7 @@ fn impl_nontrivial_tuple() {
 fn impl_phantom_data() {
     use core::marker::PhantomData;
     check_double::<PhantomData<bool>>(vec![PhantomData]);
+    check_indexable::<PhantomData<bool>>();
 }
 
 /// [`core::convert::Infallible`] is not especially interesting in its role as an error type,
@@ -40,11 +42,25 @@ fn impl_phantom_data() {
 #[test]
 fn impl_infallible() {
     check_double(Vec::<core::convert::Infallible>::new());
+    check_indexable::<core::convert::Infallible>();
 }
 
 #[test]
 fn impl_bool() {
     check_double(vec![false, true]);
+    check_indexable::<bool>();
+}
+
+#[test]
+fn impl_i8() {
+    check_double((i8::MIN..=i8::MAX).collect());
+    check_indexable::<i8>();
+}
+
+#[test]
+fn impl_u8() {
+    check_double((u8::MIN..=u8::MAX).collect());
+    check_indexable::<u8>();
 }
 
 #[test]
@@ -100,21 +116,25 @@ fn impl_nonzero_signed() {
 #[test]
 fn impl_array_of_unit_type() {
     check(vec![[(), (), (), ()]]);
+    check_indexable::<[(); 4]>();
 }
 
 #[test]
 fn impl_array_of_uninhabited_type() {
     check(Vec::<[core::convert::Infallible; 4]>::new());
+    check_indexable::<[core::convert::Infallible; 4]>();
 }
 
 #[test]
 fn impl_array_of_0() {
     check::<[bool; 0]>(vec![[]]);
+    check_indexable::<[bool; 0]>();
 }
 
 #[test]
 fn impl_array_of_1() {
     check::<[bool; 1]>(vec![[false], [true]]);
+    check_indexable::<[bool; 1]>();
 }
 
 #[test]
@@ -125,6 +145,7 @@ fn impl_array_of_2() {
         [true, false],
         [true, true],
     ]);
+    check_indexable::<[bool; 2]>();
 }
 
 #[test]
@@ -139,6 +160,7 @@ fn impl_array_of_3() {
         [true, true, false],
         [true, true, true],
     ]);
+    check_indexable::<[bool; 3]>();
 }
 
 #[test]
@@ -159,15 +181,53 @@ fn impl_result() {
 
 mod impl_cell {
     use super::*;
-    use core::cell;
+    use core::cell::{Cell, OnceCell, RefCell, UnsafeCell};
+
+    #[test]
+    fn impl_cell() {
+        check(vec![Cell::new(false), Cell::new(true)]);
+        check_indexable::<Cell<bool>>();
+    }
+
+    #[test]
+    fn impl_ref_cell() {
+        check(vec![RefCell::new(false), RefCell::new(true)]);
+    }
 
     #[test]
     fn impl_once_cell() {
+        check(vec![
+            OnceCell::new(),
+            {
+                let c = OnceCell::new();
+                c.set(false).unwrap();
+                c
+            },
+            {
+                let c = OnceCell::new();
+                c.set(true).unwrap();
+                c
+            },
+        ]);
+
+        // Since OnceCell is weird, let's separately check its actual values.
         assert_eq!(
-            cell::OnceCell::<bool>::exhaust()
+            OnceCell::<bool>::exhaust()
                 .map(|cell| cell.get().copied())
                 .collect::<Vec<_>>(),
             vec![None, Some(false), Some(true)],
+        );
+    }
+
+    #[test]
+    fn impl_unsafe_cell() {
+        // We can't use `check()` because `UnsafeCell` rightly does not implement `PartialEq`.
+
+        assert_eq!(
+            UnsafeCell::<bool>::exhaust()
+                .map(UnsafeCell::into_inner)
+                .collect::<Vec<_>>(),
+            vec![false, true],
         );
     }
 }
@@ -187,6 +247,7 @@ mod impl_fmt {
     #[test]
     fn impl_error() {
         check_double(vec![fmt::Error]);
+        check_indexable::<fmt::Error>();
     }
 }
 
