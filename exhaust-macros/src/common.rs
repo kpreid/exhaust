@@ -120,7 +120,8 @@ impl ExhaustContext {
         }
     }
 
-    /// Generate the common parts of the Iterator and factory implementation.
+    /// Generate the parts of the trait implementations for the iterator and factory
+    /// that do not depend on whether the type being exhausted is an enum or struct.
     pub fn impl_iterator_and_factory_traits(
         &self,
         iterator_next_body: TokenStream2,
@@ -204,6 +205,7 @@ impl ExhaustContext {
 /// How to name a type for construction.
 pub(crate) enum ConstructorSyntax {
     /// A struct or variant name to used with `MyStruct { field: value }` syntax.
+    /// This may be a single identifier or a path to a variant.
     Braced(TokenStream2),
     /// The type is a primitive tuple.
     Tuple,
@@ -329,12 +331,15 @@ pub(crate) fn clone_like_match_arms(
         .collect()
 }
 
-/// Generate a match arm which is a transformation which maps every field of the struct.
+/// Generate a match arm which is a transformation which maps every field of the matched struct
+/// to corresponding fields of another struct.
 pub(crate) fn clone_like_struct_conversion(
     fields: &syn::Fields,
     input_type_name: &TokenStream2,
     output_type_name: &TokenStream2,
+    // Binding mode to use with each field binding, e.g. the empty string, `ref`, or `ref mut`.
     binding_mode: &TokenStream2,
+    // Function from struct field name to value expression for the output struct.
     value_transform: impl Fn(TokenStream2) -> TokenStream2,
 ) -> TokenStream2 {
     match fields {

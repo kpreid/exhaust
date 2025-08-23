@@ -81,7 +81,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         // we don't want to *ever* bother our users with unfixable warnings about weird names.
         #[allow(nonstandard_style)]
         // This anonymous constant allows us to make all our generated types be public-in-private,
-        // without altering the meaning of any paths they use.
+        // without altering the meaning of any paths they use as a nested module would.
         const _: () = {
             impl #impl_generics #exhaust_crate_path::Exhaust for #item_type_name #ty_generics
             where #augmented_where_predicates {
@@ -279,9 +279,6 @@ fn exhaust_iter_struct(
         )
     };
 
-    // Note: The iterator must have trait bounds because its fields, being of type
-    // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
-
     let impls = ctx.impl_iterator_and_factory_traits(
         quote! {
             match self {
@@ -334,6 +331,9 @@ fn exhaust_iter_struct(
         quote! {
             // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
             // A wrapper struct is not needed because it always has at least one private field.
+            //
+            // Note: The iterator struct must have trait bounds because its fields, being of type
+            // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
             #vis struct #iterator_type_name #ty_generics
             where #augmented_where_predicates {
                 #state_field_decls
