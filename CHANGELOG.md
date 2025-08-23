@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+* `derive(Exhaust)` generates simpler code to improve build performance (and readability).
+  * Replaced use of `Option::unwrap()` with pattern matching.
+  * Replaced recursion in enum iterator `next()` with iteration.
+  * Factories for unit structs no longer include an inner type.
+  * Removed superfluous `&& true`s.
+
+### Fixed
+
+* `derive(Exhaust)` will no longer produce spurious warnings when the type of a field is uninhabited.
+
 ## 0.2.2 (2025-03-08)
 
 ### Added
