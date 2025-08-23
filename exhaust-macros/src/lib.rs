@@ -538,12 +538,14 @@ fn exhaust_iter_enum(
                 }
             } else {
                 quote! {
-                    let maybe_variant = { #field_advancer };
-                    match maybe_variant {
-                        ::core::option::Option::Some(v) => ::core::option::Option::Some(v),
+                    // TODO: merge this logic into field_advancer itself so we’re not creating an
+                    // `Option` and then immediately matching it again.
+                    let maybe_this_variant = #field_advancer;
+                    match maybe_this_variant {
+                        ::core::option::Option::Some(_) => maybe_this_variant,
                         ::core::option::Option::None => {
                             self.0 = #next_state_initializer;
-                            continue 'variants;
+                            continue 'variants
                         }
                     }
                 }
