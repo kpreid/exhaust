@@ -101,24 +101,27 @@ fn struct_simple() {
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
-struct GenericStruct<T> {
+struct GenericStruct<'a, T> {
     a: T,
     b: T,
+    p: std::marker::PhantomData<&'a ()>,
     // TODO: Also validate that trait bounds on the struct are handled
-    // TODO: Test with lifetime and const generics.
+    // TODO: Test with const generics.
 }
 
 #[test]
 fn struct_generic() {
+    let p = std::marker::PhantomData;
+    #[cfg_attr(any(), rustfmt::skip)]
     std::assert_eq!(
         c::<GenericStruct<bool>>(),
         std::vec![
-            GenericStruct { a: false, b: false },
-            GenericStruct { a: false, b: true },
-            GenericStruct { a: true, b: false },
-            GenericStruct { a: true, b: true },
+            GenericStruct { a: false, b: false, p },
+            GenericStruct { a: false, b: true, p },
+            GenericStruct { a: true, b: false, p },
+            GenericStruct { a: true, b: true, p },
         ]
-    )
+    );
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -191,8 +194,8 @@ fn enum_fields() {
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
-enum EnumWithGeneric<T> {
-    Before,
+enum EnumWithGeneric<'a, T> {
+    Before(std::marker::PhantomData<&'a ()>),
     Generic(T),
     After,
 }
@@ -200,9 +203,9 @@ enum EnumWithGeneric<T> {
 #[test]
 fn enum_generic() {
     std::assert_eq!(
-        c::<EnumWithGeneric<bool>>(),
+        c::<EnumWithGeneric<'static, bool>>(),
         std::vec![
-            EnumWithGeneric::Before,
+            EnumWithGeneric::Before(std::marker::PhantomData),
             EnumWithGeneric::Generic(false),
             EnumWithGeneric::Generic(true),
             EnumWithGeneric::After,
@@ -229,7 +232,10 @@ fn enum_with_uninhabited_nongeneric() {
 fn enum_with_uninhabited_generic() {
     std::assert_eq!(
         c::<EnumWithGeneric<std::convert::Infallible>>(),
-        [EnumWithGeneric::Before, EnumWithGeneric::After]
+        [
+            EnumWithGeneric::Before(std::marker::PhantomData),
+            EnumWithGeneric::After,
+        ]
     );
 }
 
