@@ -48,7 +48,9 @@ pub(crate) fn exhaust_iter_fields(
         iter_field_names,
         target_field_names,
         field_types,
+        factory_value_vars,
     ): (
+        Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -72,6 +74,16 @@ pub(crate) fn exhaust_iter_fields(
         )
         .to_token_stream();
 
+        // Generate a variable name to use when fetching the current values of the iterators.
+        let factory_var_name = Ident::new(
+            &match &field.ident {
+                Some(name) => format!("factory_{name}"),
+                None => format!("factory_{index}"),
+            },
+            Span::mixed_site(),
+        )
+        .to_token_stream();
+
         let field_type = &field.ty;
 
         (
@@ -87,6 +99,7 @@ pub(crate) fn exhaust_iter_fields(
             iter_field_name,
             target_field_name,
             field_type.clone().to_token_stream(),
+            factory_var_name,
         )
     }));
 
@@ -121,27 +134,32 @@ pub(crate) fn exhaust_iter_fields(
         syn::Fields::Unit => syn::Fields::Unit,
     };
 
-    let has_next_item_condition = iter_field_names
-        .iter()
-        .map(|name| quote! { #name.peek().is_some() })
-        .collect::<Punctuated<TokenStream2, syn::Token![&&]>>();
-    debug_assert!(!has_next_item_condition.is_empty());
-
-    let field_value_getters: Vec<TokenStream2> = iter_field_names
-        .iter()
-        .enumerate()
-        .map(|(i, name)| {
-            // unwrap() cannot fail because we checked with peek() before this code runs.
-            // TODO: Can we fit more of this in a non-macro helper?
-            if i == iter_field_names.len() - 1 {
-                // Advance the "last digit".
-                quote! { ::core::iter::Iterator::next(#name).unwrap() }
-            } else {
-                // Don't advance the others
-                quote! { ::core::clone::Clone::clone(::core::iter::Peekable::peek(#name).unwrap()) }
-            }
-        })
-        .collect();
+    // Peek each field's iterator, except the last which is advanced.
+    // The results of `field_iter_fetchers` will be matched against `Some(#factory_var)`.
+    let (field_iter_fetchers, field_factory_exprs): (Vec<TokenStream2>, Vec<TokenStream2>) =
+        iter_field_names
+            .iter()
+            .zip(factory_value_vars.iter())
+            .enumerate()
+            .map(|(i, (field_name, factory_var))| {
+                // unwrap() cannot fail because we checked with peek() before this code runs.
+                // TODO: Can we fit more of this in a non-macro helper?
+                if i == iter_field_names.len() - 1 {
+                    // Advance the "last digit".
+                    (
+                        quote! { ::core::iter::Iterator::next(#field_name) },
+                        factory_var.to_token_stream(),
+                    )
+                } else {
+                    // Don't advance the others
+                    (
+                        quote! { ::core::iter::Peekable::peek(#field_name) },
+                        // Clone the peeked reference to get a factory value
+                        quote! { ::core::clone::Clone::clone(#factory_var) },
+                    )
+                }
+            })
+            .unzip();
 
     let carries_expr = iter_field_names
         .iter()
@@ -173,23 +191,23 @@ pub(crate) fn exhaust_iter_fields(
     };
 
     let factory_item_expr = factory_inner_type_constructor
-        .value_expr(target_field_names.iter(), field_value_getters.iter());
+        .value_expr(target_field_names.iter(), field_factory_exprs.iter());
 
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
     let advance = quote! {
-        // TODO: This code is doing the “if is_some() { unwrap() }" pattern.
-        // We can avoid that using a match or let-else.
-        if #has_next_item_condition {
-            // Gather that next factory, advancing the last field iterator only.
-            let factory = #factory_outer_type_path(#factory_item_expr);
+        // Gather factory values, peeking all but the last field and advancing the last field.
+        match (#( #field_iter_fetchers, )*) {
+            (#( ::core::option::Option::Some(#factory_value_vars), )*) => {
+                // Construct factory from its fields’ factories, cloning as needed.
+                let factory = #factory_outer_type_path(#factory_item_expr);
 
-            // Perform carries to other field iterators.
-            #carries_statement
+                // Perform carries from any now-exhausted field iterators.
+                #carries_statement
 
-            ::core::option::Option::Some(factory)
-        } else {
-            ::core::option::Option::None
+                ::core::option::Option::Some(factory)
+            }
+            _ => ::core::option::Option::None
         }
     };
     ExhaustFields {
