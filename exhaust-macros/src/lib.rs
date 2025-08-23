@@ -243,19 +243,25 @@ fn exhaust_iter_struct(
     let factory_type_name = &ctx.factory_type.path()?;
     let factory_type = &ctx.factory_type.parameterized(&ctx.generics);
 
-    let factory_state_struct_type = ctx.generated_type_name("FactoryState")?;
-    let factory_state_ctor = ConstructorSyntax::Braced(factory_state_struct_type.to_token_stream());
-
-    let ExhaustFields {
-        state_field_decls,
-        factory_field_decls,
-        initializers,
-        cloners,
-        field_pats,
-        advance,
-    } = if s.fields.is_empty() {
-        let empty_state_expr = factory_state_ctor.value_expr([].iter(), [].iter());
+    let (
+        factory_state_struct_decl,
+        factory_state_struct_type,
+        factory_state_struct_clone_expr,
+        factory_to_self_transform,
         ExhaustFields {
+            state_field_decls,
+            factory_field_decls: _,
+            initializers,
+            cloners,
+            field_pats,
+            advance,
+        },
+    ) = if s.fields.is_empty() {
+        // If there are no fields, then
+        // * We don't need to generate a `FactoryState` struct, and can just use ().
+        // * The iterator needs a special `done` field to tell whether it has produced its 1 item.
+
+        let fields = ExhaustFields {
             state_field_decls: quote! { done: bool, },
             factory_field_decls: syn::Fields::Unit,
             initializers: quote! { done: false, },
@@ -266,16 +272,72 @@ fn exhaust_iter_struct(
                     ::core::option::Option::None
                 } else {
                     *done = true;
-                    ::core::option::Option::Some(#factory_type_name(#empty_state_expr))
+                    ::core::option::Option::Some(#factory_type_name(()))
                 }
             },
-        }
+        };
+
+        let output_type = ctx.item_type.path()?;
+        (
+            quote! {},
+            quote! { () },
+            quote! { () },
+            quote! { () => #output_type },
+            fields,
+        )
     } else {
-        exhaust_iter_fields(
+        let factory_state_struct_type = ctx.generated_type_name("FactoryState")?;
+        let factory_state_ctor =
+            ConstructorSyntax::Braced(factory_state_struct_type.to_token_stream());
+
+        let fields: ExhaustFields = exhaust_iter_fields(
             ctx,
             &s.fields,
             ctx.factory_type.path()?,
             &factory_state_ctor,
+        );
+        let factory_field_decls = &fields.factory_field_decls;
+
+        // Generate factory state struct with the same syntax type as the original
+        // (for elegance, not because it matters functionally).
+        // This struct is always wrapped in a newtype struct to hide implementation details reliably.
+        let factory_state_struct_decl = match &factory_field_decls {
+            syn::Fields::Unit | syn::Fields::Unnamed(_) => quote! {
+                #vis struct #factory_state_struct_type #ty_generics #factory_field_decls
+                where #augmented_where_predicates;
+
+            },
+
+            syn::Fields::Named(_) => quote! {
+                #vis struct #factory_state_struct_type #ty_generics
+                where #augmented_where_predicates
+                #factory_field_decls
+            },
+        };
+
+        let factory_state_struct_clone_arm = common::clone_like_struct_conversion(
+            &s.fields,
+            factory_state_ctor.path()?,
+            factory_state_ctor.path()?,
+            &quote! { ref },
+            |expr| quote! { ::core::clone::Clone::clone(#expr) },
+        );
+
+        let factory_to_self_transform = common::clone_like_struct_conversion(
+            &s.fields,
+            factory_state_ctor.path()?,
+            ctx.item_type.path()?,
+            &quote! {},
+            |expr| quote! { #exhaust_crate_path::Exhaust::from_factory(#expr) },
+        );
+
+        (
+            factory_state_struct_decl,
+            factory_state_struct_type.to_token_stream(),
+            // TODO: replace this 1-arm match with a let?
+            quote! { match self.0 { #factory_state_struct_clone_arm } },
+            factory_to_self_transform,
+            fields,
         )
     };
 
@@ -294,39 +356,6 @@ fn exhaust_iter_struct(
         },
     );
 
-    let factory_struct_clone_arm = common::clone_like_struct_conversion(
-        &s.fields,
-        factory_state_ctor.path()?,
-        factory_state_ctor.path()?,
-        &quote! { ref },
-        |expr| quote! { ::core::clone::Clone::clone(#expr) },
-    );
-
-    let factory_to_self_transform = common::clone_like_struct_conversion(
-        &s.fields,
-        factory_state_ctor.path()?,
-        ctx.item_type.path()?,
-        &quote! {},
-        |expr| quote! { #exhaust_crate_path::Exhaust::from_factory(#expr) },
-    );
-
-    // Generate factory state struct with the same syntax type as the original
-    // (for elegance, not because it matters functionally).
-    // This struct is always wrapped in a newtype struct to hide implementation details reliably.
-    let factory_state_struct_decl = match &factory_field_decls {
-        syn::Fields::Unit | syn::Fields::Unnamed(_) => quote! {
-            #vis struct #factory_state_struct_type #ty_generics #factory_field_decls
-            where #augmented_where_predicates;
-
-        },
-
-        syn::Fields::Named(_) => quote! {
-            #vis struct #factory_state_struct_type #ty_generics
-            where #augmented_where_predicates
-            #factory_field_decls
-        },
-    };
-
     Ok((
         quote! {
             // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
@@ -339,21 +368,23 @@ fn exhaust_iter_struct(
                 #state_field_decls
             }
 
-            // Struct that is exposed as the `<Self as Exhaust>::Factory` type.
+            // Struct that is exposed as the `<Self as Exhaust>::Factory` type,
+            // wrapping the private factory_state_struct_type.
             #vis struct #factory_type_name #ty_generics (#factory_state_struct_type #ty_generics)
             where #augmented_where_predicates;
 
             #impls
 
+            // Declare the factory_state_struct_type (`Exhaust*FactoryState`) struct,
+            // which is a private field of the factory type.
+            // This is empty for unit structs, which use () as the state type instead.
             #factory_state_struct_decl
 
             // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
             impl #impl_generics ::core::clone::Clone for #factory_type
             where #augmented_where_predicates {
                 fn clone(&self) -> Self {
-                    Self(match self.0 {
-                        #factory_struct_clone_arm
-                    })
+                    Self(#factory_state_struct_clone_expr)
                 }
             }
 
