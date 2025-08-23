@@ -100,13 +100,12 @@ fn struct_simple() {
     )
 }
 
+/// A struct with type, lifetime, and const parameters, and a trait bound on the type parameter.
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
-struct GenericStruct<'a, T> {
+struct GenericStruct<'a, T: std::marker::Copy, const N: usize> {
     a: T,
     b: T,
-    p: std::marker::PhantomData<&'a ()>,
-    // TODO: Also validate that trait bounds on the struct are handled
-    // TODO: Test with const generics.
+    p: std::marker::PhantomData<&'a [(); N]>,
 }
 
 #[test]
@@ -114,7 +113,7 @@ fn struct_generic() {
     let p = std::marker::PhantomData;
     #[cfg_attr(any(), rustfmt::skip)]
     std::assert_eq!(
-        c::<GenericStruct<bool>>(),
+        c::<GenericStruct<bool, 3>>(),
         std::vec![
             GenericStruct { a: false, b: false, p },
             GenericStruct { a: false, b: true, p },
@@ -131,7 +130,10 @@ struct UninhabitedStruct {
 
 #[test]
 fn struct_uninhabited_generic() {
-    std::assert_eq!(c::<GenericStruct<std::convert::Infallible>>(), std::vec![])
+    std::assert_eq!(
+        c::<GenericStruct<std::convert::Infallible, 100>>(),
+        std::vec![]
+    )
 }
 
 #[test]

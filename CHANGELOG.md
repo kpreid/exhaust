@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+* `derive(Exhaust)` now supports types with const generic parameters.
+
 ### Changed
 
 * `derive(Exhaust)` generates simpler code to improve build performance (and readability).
