@@ -122,6 +122,21 @@ fn struct_generic() {
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
+struct UninhabitedStruct {
+    x: std::convert::Infallible,
+}
+
+#[test]
+fn struct_uninhabited_generic() {
+    std::assert_eq!(c::<GenericStruct<std::convert::Infallible>>(), std::vec![])
+}
+
+#[test]
+fn struct_uninhabited_nongeneric() {
+    std::assert_eq!(c::<UninhabitedStruct>(), std::vec![])
+}
+
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum EmptyEnum {}
 
 #[test]
@@ -177,8 +192,9 @@ fn enum_fields() {
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum EnumWithGeneric<T> {
-    N,
-    S(T),
+    Before,
+    Generic(T),
+    After,
 }
 
 #[test]
@@ -186,10 +202,34 @@ fn enum_generic() {
     std::assert_eq!(
         c::<EnumWithGeneric<bool>>(),
         std::vec![
-            EnumWithGeneric::N,
-            EnumWithGeneric::S(false),
-            EnumWithGeneric::S(true),
+            EnumWithGeneric::Before,
+            EnumWithGeneric::Generic(false),
+            EnumWithGeneric::Generic(true),
+            EnumWithGeneric::After,
         ]
+    );
+}
+
+#[derive(Debug, exhaust::Exhaust, PartialEq)]
+enum EnumWithUninhabited {
+    Before,
+    Uninhabited(std::convert::Infallible),
+    After,
+}
+
+/// Test that an uninhabited variant is skipped (rather than, terminating the iteration early).
+#[test]
+fn enum_with_uninhabited_nongeneric() {
+    std::assert_eq!(
+        c::<EnumWithUninhabited>(),
+        [EnumWithUninhabited::Before, EnumWithUninhabited::After]
+    );
+}
+#[test]
+fn enum_with_uninhabited_generic() {
+    std::assert_eq!(
+        c::<EnumWithGeneric<std::convert::Infallible>>(),
+        [EnumWithGeneric::Before, EnumWithGeneric::After]
     );
 }
 

@@ -161,6 +161,7 @@ impl ExhaustContext {
                 type Item = <#item_type_inst as #exhaust_crate_path::Exhaust>::Factory;
 
                 fn next(&mut self) -> ::core::option::Option<Self::Item> {
+                    #![allow(unreachable_code)] // an iterator or factory might be uninhabited
                     #iterator_next_body
                 }
             }
