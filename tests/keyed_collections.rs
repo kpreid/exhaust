@@ -5,7 +5,7 @@
 extern crate alloc;
 use alloc::collections::{BTreeMap, BTreeSet};
 
-#[cfg_attr(not(feature = "std"), expect(dead_code))]
+#[cfg_attr(not(feature = "std"), expect(unused_imports))]
 use exhaust::Exhaust;
 
 mod helper;
