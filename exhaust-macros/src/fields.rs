@@ -1,5 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
+use syn::punctuated::Punctuated;
 
 use crate::common::{ConstructorSyntax, ExhaustContext};
 
@@ -120,6 +121,12 @@ pub(crate) fn exhaust_iter_fields(
         syn::Fields::Unit => syn::Fields::Unit,
     };
 
+    let has_next_item_condition = iter_field_names
+        .iter()
+        .map(|name| quote! { #name.peek().is_some() })
+        .collect::<Punctuated<TokenStream2, syn::Token![&&]>>();
+    debug_assert!(!has_next_item_condition.is_empty());
+
     let field_value_getters: Vec<TokenStream2> = iter_field_names
         .iter()
         .enumerate()
@@ -136,7 +143,7 @@ pub(crate) fn exhaust_iter_fields(
         })
         .collect();
 
-    let carries = iter_field_names
+    let carries_expr = iter_field_names
         .iter()
         .zip(
             iter_field_names
@@ -153,7 +160,17 @@ pub(crate) fn exhaust_iter_fields(
                     #crate_path::iteration::peekable_exhaust::<#low_field_type>
                 )
             }
-        });
+        })
+        // && short circuiting gives us the behavior we want conveniently, whereas
+        // the nearest alternative would be to define a separate function.
+        .collect::<Punctuated<TokenStream2, syn::Token![&&]>>();
+    let carries_statement = match carries_expr.len() {
+        0 => quote! {},
+        // one function call
+        1 => quote! { #carries_expr; },
+        // explicitly ignore the unused final bool result of the `&&` expression
+        2.. => quote! { let _ = #carries_expr; },
+    };
 
     let factory_item_expr = factory_inner_type_constructor
         .value_expr(target_field_names.iter(), field_value_getters.iter());
@@ -161,14 +178,14 @@ pub(crate) fn exhaust_iter_fields(
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
     let advance = quote! {
-        if #( #iter_field_names.peek().is_some() && )* true {
+        // TODO: This code is doing the “if is_some() { unwrap() }" pattern.
+        // We can avoid that using a match or let-else.
+        if #has_next_item_condition {
             // Gather that next factory, advancing the last field iterator only.
             let factory = #factory_outer_type_path(#factory_item_expr);
 
             // Perform carries to other field iterators.
-            // && short circuiting gives us the behavior we want conveniently, whereas
-            // the nearest alternative would be to define a separate function.
-            let _ = #( #carries && )* true;
+            #carries_statement
 
             ::core::option::Option::Some(factory)
         } else {
