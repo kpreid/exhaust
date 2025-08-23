@@ -237,7 +237,7 @@ fn exhaust_iter_struct(
 ) -> Result<(TokenStream2, TokenStream2), syn::Error> {
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
-    let (impl_generics, ty_generics, augmented_where_predicates) =
+    let (impl_or_decl_generics, ty_generics, augmented_where_predicates) =
         ctx.generics_with_bounds(syn::parse_quote! {});
     let iterator_type_name = &ctx.iterator_type_name;
     let factory_type_name = &ctx.factory_type.path()?;
@@ -303,13 +303,13 @@ fn exhaust_iter_struct(
         // This struct is always wrapped in a newtype struct to hide implementation details reliably.
         let factory_state_struct_decl = match &factory_field_decls {
             syn::Fields::Unit | syn::Fields::Unnamed(_) => quote! {
-                #vis struct #factory_state_struct_type #ty_generics #factory_field_decls
+                #vis struct #factory_state_struct_type #impl_or_decl_generics #factory_field_decls
                 where #augmented_where_predicates;
 
             },
 
             syn::Fields::Named(_) => quote! {
-                #vis struct #factory_state_struct_type #ty_generics
+                #vis struct #factory_state_struct_type #impl_or_decl_generics
                 where #augmented_where_predicates
                 #factory_field_decls
             },
@@ -363,14 +363,16 @@ fn exhaust_iter_struct(
             //
             // Note: The iterator struct must have trait bounds because its fields, being of type
             // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
-            #vis struct #iterator_type_name #ty_generics
+            #vis struct #iterator_type_name #impl_or_decl_generics
             where #augmented_where_predicates {
                 #state_field_decls
             }
 
             // Struct that is exposed as the `<Self as Exhaust>::Factory` type,
             // wrapping the private factory_state_struct_type.
-            #vis struct #factory_type_name #ty_generics (#factory_state_struct_type #ty_generics)
+            #vis struct #factory_type_name #impl_or_decl_generics (
+                #factory_state_struct_type #ty_generics
+            )
             where #augmented_where_predicates;
 
             #impls
@@ -381,7 +383,7 @@ fn exhaust_iter_struct(
             #factory_state_struct_decl
 
             // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
-            impl #impl_generics ::core::clone::Clone for #factory_type
+            impl #impl_or_decl_generics ::core::clone::Clone for #factory_type
             where #augmented_where_predicates {
                 fn clone(&self) -> Self {
                     Self(#factory_state_struct_clone_expr)
