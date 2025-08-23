@@ -271,10 +271,10 @@ fn function_containing_derive() {
 
 #[allow(dead_code)]
 #[derive(exhaust::Exhaust)]
-enum VariableNameHygieneTest {
+enum VariableNameHygieneTest<'variants> {
     // These field and variant names shouldn't conflict with internal variables in the generated impl.
     Foo {
-        has_next: (),
+        has_next: std::marker::PhantomData<&'variants ()>,
         item: (),
         iter_f_0: (),
         factory: (),

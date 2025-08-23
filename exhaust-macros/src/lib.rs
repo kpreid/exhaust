@@ -543,8 +543,7 @@ fn exhaust_iter_enum(
                         ::core::option::Option::Some(v) => ::core::option::Option::Some(v),
                         ::core::option::Option::None => {
                             self.0 = #next_state_initializer;
-                            // TODO: recursion is a kludge here; rewrite as loop{}
-                            ::core::iter::Iterator::next(self)
+                            continue 'variants;
                         }
                     }
                 }
@@ -577,9 +576,11 @@ fn exhaust_iter_enum(
 
     let impls = ctx.impl_iterator_and_factory_traits(
         quote! {
-            match &mut self.0 {
-                #( #variant_next_arms , )*
-                #iter_state_enum_type::#done_variant => ::core::option::Option::None,
+            'variants: loop {
+                break 'variants match &mut self.0 {
+                    #( #variant_next_arms , )*
+                    #iter_state_enum_type::#done_variant => ::core::option::Option::None,
+                }
             }
         },
         quote! {
