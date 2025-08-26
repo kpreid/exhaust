@@ -33,3 +33,8 @@ pub struct OptionFactoryNotAccessible;
 /// struct Foo(ExhaustFooFactory);
 /// ```
 pub struct ConflictWithGeneratedTypeNames;
+
+/// ```compile_fail
+/// const TOO_MANY_VALS: usize = <[u8; 8] as exhaust::Indexable>::VALUE_COUNT;
+/// ```
+pub struct IndexableArrayTooLarge;
