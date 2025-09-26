@@ -304,13 +304,28 @@ pub trait Exhaust: Sized {
 ///
 /// </div>
 ///
+/// # Options
+///
+/// `#[derive(Exhaust)]` may be configured by using `#[exhaust(...)]` attributes on the type.
+/// The currently available attributes are:
+///
+/// * `#[exhaust(factory_is_self)]`
+///
+///   Makes the `<Self as Exhaust>::Factory` associated type be `Self` instead of a newly
+///   generated type. This allows the macro to generate less code, but is a public API change.
+///   It can only be done when:
+///
+///   * The type implements [`Clone`] and [`fmt::Debug`].
+///   * All of its fields *also* implement `Exhaust<Factory = Self>`.
+///
 /// # Generated code
 ///
 /// The macro generates the following items:
 ///
 /// * An implementation of [`Exhaust`] for your type.
 ///
-/// * A “factory” struct type for `<Self as Exhaust>::Factory`.
+/// * A “factory” struct type for `<Self as Exhaust>::Factory`
+///   (unless `factory_is_self` is enabled).
 ///
 ///   It has no public fields.
 ///   It implements [`Clone`] and [`fmt::Debug`].
@@ -416,3 +431,13 @@ impl<T: Exhaust<Iter: fmt::Debug>> fmt::Debug for Iter<T> {
         f.debug_tuple("exhaust::Iter").field(&self.0).finish()
     }
 }
+
+// -------------------------------------------------------------------------------------------------
+
+/// Convenience trait-alias for helping the derive macro be simpler and generate simpler code.
+///
+/// It includes `Clone + fmt::Debug` because those are the bounds required of factories,
+/// and including them as supertrait bounds here allows avoiding reiterating them.
+#[doc(hidden)]
+pub trait ExhaustWithFactoryEqSelf: Exhaust<Factory = Self> + Clone + fmt::Debug {}
+impl<T> ExhaustWithFactoryEqSelf for T where T: Exhaust<Factory = T> + Clone + fmt::Debug {}

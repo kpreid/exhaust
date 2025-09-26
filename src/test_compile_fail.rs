@@ -33,3 +33,34 @@ pub struct OptionFactoryNotAccessible;
 /// struct Foo(ExhaustFooFactory);
 /// ```
 pub struct ConflictWithGeneratedTypeNames;
+
+/// Tests of the parsing of the `#[exhaust]` attribute.
+mod attr {
+    /// ```compile_fail
+    /// #[derive(exhaust::Exhaust)]
+    /// #[exhaust(some_unknown_option)]
+    /// struct Foo;
+    /// ```
+    pub struct Unknown;
+
+    /// ```compile_fail
+    /// #[derive(exhaust::Exhaust)]
+    /// #[exhaust(factory_is_self, unknown_option)]
+    /// struct Foo;
+    /// ```
+    pub struct UnknownNotFirst;
+
+    /// ```compile_fail
+    /// #[derive(exhaust::Exhaust)]
+    /// #[exhaust(factory_is_self(unknown_sub_option))]
+    /// struct Foo;
+    /// ```
+    pub struct LooksLikeArgs;
+
+    /// ```compile_fail
+    /// #[derive(exhaust::Exhaust)]
+    /// #[exhaust(factory_is_self = true)]
+    /// struct Foo;
+    /// ```
+    pub struct LooksLikeKv;
+}
