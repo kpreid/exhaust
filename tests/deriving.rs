@@ -243,13 +243,13 @@ fn enum_with_uninhabited_generic() {
 
 mod module {
     #[derive(::exhaust::Exhaust)]
-    enum EnumInsideMod<T> {
+    enum _EnumInsideMod<T> {
         N,
         S(T),
     }
 
     #[derive(Debug, PartialEq, ::exhaust::Exhaust)]
-    struct StructInsideMod(bool);
+    struct _StructInsideMod(bool);
 }
 
 /// Items in functions have different scoping rules than items in modules.
@@ -257,7 +257,7 @@ mod module {
 #[test]
 fn function_containing_derive() {
     #[derive(exhaust::Exhaust)]
-    enum EnumInsideFn<T> {
+    enum _EnumInsideFn<T> {
         N,
         S(T),
     }
