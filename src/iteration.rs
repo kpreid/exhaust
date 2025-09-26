@@ -65,9 +65,6 @@ where
     }
 }
 
-#[test]
-fn carry_example() {}
-
 /// Given an iterator and a function of its elements that yields an iterator,
 /// produce tuples of the two iterators' results.
 #[derive(Clone)]

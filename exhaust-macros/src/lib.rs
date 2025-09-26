@@ -17,7 +17,7 @@ use fields::{exhaust_iter_fields, ExhaustFields};
 use crate::common::ConstructorSyntax;
 
 // Note: documentation is on the reexport so that it can have working links.
-#[proc_macro_derive(Exhaust)]
+#[proc_macro_derive(Exhaust, attributes(exhaust))]
 pub fn derive_exhaust(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     derive_impl(input)
@@ -39,22 +39,48 @@ pub fn impl_exhaust_for_tuples(input: TokenStream) -> TokenStream {
 fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     let DeriveInput {
         ident: item_type_name,
-        attrs: _,
+        attrs,
         vis,
         generics,
         data,
     } = input;
 
+    let mut factory_is_self = false;
+    for attr in attrs
+        .into_iter()
+        .filter(|attr| attr.meta.path().is_ident("exhaust"))
+    {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("factory_is_self") {
+                factory_is_self = true;
+                Ok(())
+            } else {
+                Err(meta.error("unrecognized #[exhaust()] attribute"))
+            }
+        })?;
+    }
+
     let item_type_name_str = &item_type_name.to_string();
-    let factory_type_name = common::generated_type_name(item_type_name_str, "Factory");
     let iterator_type_name = common::generated_type_name(item_type_name_str, "Iter");
+    let (factory_type, factory_assoc_type_path) = if factory_is_self {
+        (
+            common::FactoryType::IsSelf,
+            item_type_name.to_token_stream(),
+        )
+    } else {
+        let gen = common::generated_type_name(item_type_name_str, "Factory").to_token_stream();
+        (
+            common::FactoryType::Separate(ConstructorSyntax::Braced(gen.clone())),
+            gen,
+        )
+    };
 
     let ctx = ExhaustContext {
         vis,
         generics,
         iterator_type_name,
         item_type: ConstructorSyntax::Braced(item_type_name.to_token_stream()),
-        factory_type: ConstructorSyntax::Braced(factory_type_name.to_token_stream()),
+        factory_type,
         exhaust_crate_path: syn::parse_quote! { ::exhaust },
     };
     let ExhaustContext {
@@ -86,7 +112,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
             impl #impl_generics #exhaust_crate_path::Exhaust for #item_type_name #ty_generics
             where #augmented_where_predicates {
                 type Iter = #iterator_type_name #ty_generics;
-                type Factory = #factory_type_name #ty_generics;
+                type Factory = #factory_assoc_type_path #ty_generics;
                 fn exhaust_factories() -> Self::Iter {
                     ::core::default::Default::default()
                 }
@@ -160,7 +186,7 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
             where_clause: None,
         },
         item_type: ConstructorSyntax::Tuple,
-        factory_type: ConstructorSyntax::Tuple,
+        factory_type: common::FactoryType::Separate(ConstructorSyntax::Tuple),
         iterator_type_name: common::generated_type_name("Tuple", "Iter"),
         exhaust_crate_path: parse_quote! { crate },
     };
@@ -178,7 +204,7 @@ fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
     } = exhaust_iter_fields(
         &ctx,
         &synthetic_fields,
-        &quote! {},
+        Some(&quote! {}),
         &ConstructorSyntax::Tuple,
     );
 
@@ -240,8 +266,7 @@ fn exhaust_iter_struct(
     let (impl_or_decl_generics, ty_generics, augmented_where_predicates) =
         ctx.generics_with_bounds(syn::parse_quote! {});
     let iterator_type_name = &ctx.iterator_type_name;
-    let factory_type_name = &ctx.factory_type.path()?;
-    let factory_type = &ctx.factory_type.parameterized(&ctx.generics);
+    let factory_type_name = &ctx.factory_type_path()?;
 
     let (
         factory_state_struct_decl,
@@ -261,6 +286,12 @@ fn exhaust_iter_struct(
         // * We don't need to generate a `FactoryState` struct, and can just use ().
         // * The iterator needs a special `done` field to tell whether it has produced its 1 item.
 
+        let factory_ctor_expr = if ctx.factory_is_self() {
+            factory_type_name.to_token_stream()
+        } else {
+            quote! { #factory_type_name(()) }
+        };
+
         let fields = ExhaustFields {
             state_field_decls: quote! { done: bool, },
             factory_field_decls: syn::Fields::Unit,
@@ -272,7 +303,7 @@ fn exhaust_iter_struct(
                     ::core::option::Option::None
                 } else {
                     *done = true;
-                    ::core::option::Option::Some(#factory_type_name(()))
+                    ::core::option::Option::Some(#factory_ctor_expr)
                 }
             },
         };
@@ -285,6 +316,14 @@ fn exhaust_iter_struct(
             quote! { () => #output_type },
             fields,
         )
+    } else if ctx.factory_is_self() {
+        (
+            quote! {}, // no state struct
+            quote! {}, // no state struct
+            quote! { ::core::clone::Clone::clone(self) },
+            quote! { f => f }, // factory transformation is identity
+            exhaust_iter_fields(ctx, &s.fields, None, &ctx.item_type),
+        )
     } else {
         let factory_state_struct_type = ctx.generated_type_name("FactoryState")?;
         let factory_state_ctor =
@@ -293,7 +332,7 @@ fn exhaust_iter_struct(
         let fields: ExhaustFields = exhaust_iter_fields(
             ctx,
             &s.fields,
-            ctx.factory_type.path()?,
+            Some(ctx.factory_type_path()?),
             &factory_state_ctor,
         );
         let factory_field_decls = &fields.factory_field_decls;
@@ -302,6 +341,9 @@ fn exhaust_iter_struct(
         // (for elegance, not because it matters functionally).
         // This struct is always wrapped in a newtype struct to hide implementation details reliably.
         let factory_state_struct_decl = match &factory_field_decls {
+            // If factory is self, don't generate a factory state type.
+            _ if ctx.factory_is_self() => quote! {},
+
             syn::Fields::Unit | syn::Fields::Unnamed(_) => quote! {
                 #vis struct #factory_state_struct_type #impl_or_decl_generics #factory_field_decls
                 where #augmented_where_predicates;
@@ -323,22 +365,50 @@ fn exhaust_iter_struct(
             |expr| quote! { ::core::clone::Clone::clone(#expr) },
         );
 
-        let factory_to_self_transform = common::clone_like_struct_conversion(
-            &s.fields,
-            factory_state_ctor.path()?,
-            ctx.item_type.path()?,
-            &quote! {},
-            |expr| quote! { #exhaust_crate_path::Exhaust::from_factory(#expr) },
-        );
+        let factory_to_self_transform_arm = if ctx.factory_is_self() {
+            quote! { x => x }
+        } else {
+            common::clone_like_struct_conversion(
+                &s.fields,
+                factory_state_ctor.path()?,
+                ctx.item_type.path()?,
+                &quote! {},
+                |expr| quote! { #exhaust_crate_path::Exhaust::from_factory(#expr) },
+            )
+        };
 
         (
             factory_state_struct_decl,
             factory_state_struct_type.to_token_stream(),
             // TODO: replace this 1-arm match with a let?
             quote! { match self.0 { #factory_state_struct_clone_arm } },
-            factory_to_self_transform,
+            factory_to_self_transform_arm,
             fields,
         )
+    };
+
+    let factory_struct_decl_and_impls = match &ctx.factory_type {
+        common::FactoryType::IsSelf => quote! {},
+        common::FactoryType::Separate(factory_type_csyn) => {
+            let factory_type = &factory_type_csyn.parameterized(&ctx.generics);
+
+            quote! {
+                // Struct that is exposed as the `<Self as Exhaust>::Factory` type,
+                // wrapping the private factory_state_struct_type.
+                #vis struct #factory_type_name #impl_or_decl_generics (
+                    #factory_state_struct_type #ty_generics
+                )
+                where #augmented_where_predicates;
+
+                // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
+                impl #impl_or_decl_generics ::core::clone::Clone for #factory_type
+                where #augmented_where_predicates {
+                    fn clone(&self) -> Self {
+                        Self(#factory_state_struct_clone_expr)
+                    }
+                }
+            }
+        }
     };
 
     let impls = ctx.impl_iterator_and_factory_traits(
@@ -368,12 +438,7 @@ fn exhaust_iter_struct(
                 #state_field_decls
             }
 
-            // Struct that is exposed as the `<Self as Exhaust>::Factory` type,
-            // wrapping the private factory_state_struct_type.
-            #vis struct #factory_type_name #impl_or_decl_generics (
-                #factory_state_struct_type #ty_generics
-            )
-            where #augmented_where_predicates;
+            #factory_struct_decl_and_impls
 
             #impls
 
@@ -381,19 +446,16 @@ fn exhaust_iter_struct(
             // which is a private field of the factory type.
             // This is empty for unit structs, which use () as the state type instead.
             #factory_state_struct_decl
-
-            // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
-            impl #impl_or_decl_generics ::core::clone::Clone for #factory_type
-            where #augmented_where_predicates {
-                fn clone(&self) -> Self {
-                    Self(#factory_state_struct_clone_expr)
-                }
-            }
-
         },
-        quote! {
-            match factory.0 {
-                #factory_to_self_transform
+        if ctx.factory_is_self() {
+            quote! {
+                factory
+            }
+        } else {
+            quote! {
+                match factory.0 {
+                    #factory_to_self_transform
+                }
             }
         },
     ))
@@ -406,14 +468,29 @@ fn exhaust_iter_enum(
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
     let iterator_type_name = &ctx.iterator_type_name;
-    let factory_outer_type_path = &ctx.factory_type.path()?;
-    let factory_type = &ctx.factory_type.parameterized(&ctx.generics);
+    let (impl_generics, ty_generics, augmented_where_predicates) =
+        ctx.generics_with_bounds(syn::parse_quote! {});
+
+    // If we are generating a factory type and not using the original input type,
+    // then generate a name for that type's state enum
+    let (factory_outer_type_path, factory_state_enum_type, factory_state_ctor): (
+        Option<&TokenStream2>,
+        Option<TokenStream2>,
+        ConstructorSyntax,
+    ) = if ctx.factory_is_self() {
+        (None, None, ctx.item_type.clone())
+    } else {
+        let name = ctx.generated_type_name("FactoryState")?.to_token_stream();
+        (
+            Some(ctx.factory_type_path()?),
+            Some(name.clone()),
+            ConstructorSyntax::Braced(name),
+        )
+    };
 
     // These enum types are both wrapped in structs,
     // so that the user of the macro cannot depend on its implementation details.
     let iter_state_enum_type = ctx.generated_type_name("IterState")?;
-    let factory_state_enum_type = ctx.generated_type_name("FactoryState")?.to_token_stream();
-    let factory_state_ctor = ConstructorSyntax::Braced(factory_state_enum_type.clone());
 
     // One ident per variant of the original enum.
     let state_enum_progress_variants: Vec<Ident> = e
@@ -534,9 +611,14 @@ fn exhaust_iter_enum(
                 let factory_state_expr = factory_state_ctor
                     .with_variant(target_variant_ident)
                     .value_expr([].iter(), [].iter());
+                let factory_ctor_expr = if let Some(outer_ctor_path) = factory_outer_type_path {
+                    quote! { #outer_ctor_path(#factory_state_expr) }
+                } else {
+                    factory_state_expr
+                };
                 quote! {
                     self.0 = #next_state_initializer;
-                    ::core::option::Option::Some(#factory_outer_type_path(#factory_state_expr))
+                    ::core::option::Option::Some(#factory_ctor_expr)
                 }
             } else {
                 quote! {
@@ -560,24 +642,6 @@ fn exhaust_iter_enum(
         },
     );
 
-    let factory_enum_variant_clone_arms: Vec<TokenStream2> = common::clone_like_match_arms(
-        &e.variants,
-        &factory_state_enum_type,
-        &factory_state_enum_type,
-        &quote! { ref },
-        |expr| quote! { ::core::clone::Clone::clone(#expr) },
-    );
-    let factory_to_self_transform = common::clone_like_match_arms(
-        &e.variants,
-        &factory_state_enum_type,
-        ctx.item_type.path()?,
-        &quote! {},
-        |expr| quote! { #exhaust_crate_path::Exhaust::from_factory(#expr) },
-    );
-
-    let (impl_generics, ty_generics, augmented_where_predicates) =
-        ctx.generics_with_bounds(syn::parse_quote! {});
-
     let impls = ctx.impl_iterator_and_factory_traits(
         quote! {
             'variants: loop {
@@ -597,32 +661,54 @@ fn exhaust_iter_enum(
         },
     );
 
+    let factory_struct_decl_and_impls = match &ctx.factory_type {
+        common::FactoryType::IsSelf => quote! {},
+        common::FactoryType::Separate(factory_type_csyn) => {
+            let factory_type = &factory_type_csyn.parameterized(&ctx.generics);
+            let factory_state_enum_type = factory_state_enum_type.as_ref().unwrap();
+
+            let factory_enum_variant_clone_arms: Vec<TokenStream2> = common::clone_like_match_arms(
+                &e.variants,
+                factory_state_enum_type,
+                factory_state_enum_type,
+                &quote! { ref },
+                |expr| quote! { ::core::clone::Clone::clone(#expr) },
+            );
+
+            let decl_and_impls = quote! {
+                // Struct that is exposed as the `<Self as Exhaust>::Factory` type.
+                #vis struct #factory_outer_type_path #ty_generics (#factory_state_enum_type #ty_generics)
+                where #augmented_where_predicates;
+
+                // Enum wrapped in #factory_type_name with the actual data.
+                enum #factory_state_enum_type #ty_generics
+                where #augmented_where_predicates { #( #factory_variant_decls ,)* }
+
+                // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
+                impl #impl_generics ::core::clone::Clone for #factory_type
+                where #augmented_where_predicates {
+                    fn clone(&self) -> Self {
+                        #![allow(unreachable_code)] // in case of empty enum
+                        Self(match self.0 {
+                            #( #factory_enum_variant_clone_arms , )*
+                        })
+                    }
+                }
+            };
+
+            decl_and_impls
+        }
+    };
+
     let iterator_decl = quote! {
         // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
         #vis struct #iterator_type_name #ty_generics
         (#iter_state_enum_type #ty_generics)
         where #augmented_where_predicates;
 
-        // Struct that is exposed as the `<Self as Exhaust>::Factory` type.
-        #vis struct #factory_outer_type_path #ty_generics (#factory_state_enum_type #ty_generics)
-        where #augmented_where_predicates;
-
         #impls
 
-        // Enum wrapped in #factory_type_name with the actual data.
-        enum #factory_state_enum_type #ty_generics
-        where #augmented_where_predicates { #( #factory_variant_decls ,)* }
-
-        // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
-        impl #impl_generics ::core::clone::Clone for #factory_type
-        where #augmented_where_predicates {
-            fn clone(&self) -> Self {
-                #![allow(unreachable_code)] // in case of empty enum
-                Self(match self.0 {
-                    #( #factory_enum_variant_clone_arms , )*
-                })
-            }
-        }
+        #factory_struct_decl_and_impls
 
         enum #iter_state_enum_type #ty_generics
         where #augmented_where_predicates
@@ -631,9 +717,21 @@ fn exhaust_iter_enum(
         }
     };
 
-    let from_factory_body = quote! {
-        match factory.0 {
-            #( #factory_to_self_transform , )*
+    let from_factory_body = if ctx.factory_is_self() {
+        quote! { factory }
+    } else {
+        let factory_to_self_transform = common::clone_like_match_arms(
+            &e.variants,
+            factory_state_enum_type.as_ref().unwrap(),
+            ctx.item_type.path()?,
+            &quote! {},
+            |expr| quote! { #exhaust_crate_path::Exhaust::from_factory(#expr) },
+        );
+
+        quote! {
+            match factory.0 {
+                #( #factory_to_self_transform , )*
+            }
         }
     };
 

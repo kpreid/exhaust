@@ -35,13 +35,24 @@ pub(crate) struct ExhaustContext {
     /// Name of the generated factory type, which is a unit struct containing a struct
     /// like the type being exhausted but with different field types,
     /// and is the item type of the generated iterator.
-    pub factory_type: ConstructorSyntax,
+    pub factory_type: FactoryType,
 
     /// Name of the generated iterator type.
     pub iterator_type_name: Ident,
 
     /// Path by which the `exhaust` crate should be referred to.
     pub exhaust_crate_path: syn::Path,
+}
+
+/// Information about the `Exhaust::Factory` associated type used by the `Exhaust` implementation
+/// we are generating.
+pub(crate) enum FactoryType {
+    /// `#[exhaust(factory_is_self)]` mode. No factory type is generated; the `Exhaust` implementor
+    /// is also the factory.
+    IsSelf,
+
+    /// An opaque factory type with the given name is generated.
+    Separate(ConstructorSyntax),
 }
 
 impl ExhaustContext {
@@ -61,9 +72,13 @@ impl ExhaustContext {
     }
 
     /// Generate the TraitBound containing the `exhaust::Exhaust` trait.
-    pub fn exhaust_trait_bound(&self) -> syn::TraitBound {
+    fn exhaust_trait_bound(&self) -> syn::TraitBound {
         let mut path = self.exhaust_crate_path.clone();
-        path.segments.push(parse_quote! { Exhaust });
+        path.segments.push(if self.factory_is_self() {
+            parse_quote! { ExhaustWithFactoryEqSelf }
+        } else {
+            parse_quote! { Exhaust }
+        });
         // reinterpret as TraitBound
         parse_quote! { #path }
     }
@@ -135,10 +150,11 @@ impl ExhaustContext {
         let item_type_inst = self.item_type.parameterized(&self.generics);
 
         let factory_impls = match &self.factory_type {
-            // Don't try to implement for a tuple type.
-            ConstructorSyntax::Tuple => quote! {},
+            // Don't try to implement for an existing type
+            // (that might be either () or the Self type).
+            FactoryType::Separate(ConstructorSyntax::Tuple) | FactoryType::IsSelf => quote! {},
 
-            ConstructorSyntax::Braced(factory_outer_type_name) => quote! {
+            FactoryType::Separate(ConstructorSyntax::Braced(factory_outer_type_name)) => quote! {
                 impl #impl_generics ::core::fmt::Debug for #factory_outer_type_name #ty_generics
                 where #augmented_where_predicates {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
@@ -200,9 +216,24 @@ impl ExhaustContext {
             #factory_impls
         }
     }
+
+    pub fn factory_is_self(&self) -> bool {
+        matches!(self.factory_type, FactoryType::IsSelf)
+    }
+
+    /// Returns the path, without generics, of the factory type.
+    /// This may be used when constructing values of the factory type,
+    /// or have generics appended to make the full name of the type.
+    pub fn factory_type_path(&self) -> Result<&TokenStream2, syn::Error> {
+        match self.factory_type {
+            FactoryType::IsSelf => self.item_type.path(),
+            FactoryType::Separate(ref cs) => cs.path(),
+        }
+    }
 }
 
 /// How to name a type for construction.
+#[derive(Clone)]
 pub(crate) enum ConstructorSyntax {
     /// A struct or variant name to used with `MyStruct { field: value }` syntax.
     /// This may be a single identifier or a path to a variant.

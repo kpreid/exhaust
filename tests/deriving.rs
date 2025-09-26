@@ -35,12 +35,24 @@ where
     result
 }
 
+fn assert_factory_is_self<T: exhaust::Exhaust<Factory = T>>() {}
+
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
 struct UnitStruct;
+
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[exhaust(factory_is_self)]
+struct UnitStructFis;
 
 #[test]
 fn struct_unit() {
     std::assert_eq!(c::<UnitStruct>(), std::vec![UnitStruct]);
+}
+#[test]
+fn struct_unit_fis() {
+    std::assert_eq!(c::<UnitStructFis>(), std::vec![UnitStructFis]);
+
+    assert_factory_is_self::<UnitStructFis>();
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -100,6 +112,28 @@ fn struct_simple() {
     )
 }
 
+/// Similar to [`struct_simple()`] test but with `factory_is_self`.
+#[test]
+fn struct_simple_fis() {
+    #[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+    #[exhaust(factory_is_self)]
+    struct SimpleStructFis {
+        a: bool,
+        b: bool,
+    }
+
+    std::assert_eq!(
+        c::<SimpleStructFis>(),
+        std::vec![
+            SimpleStructFis { a: false, b: false },
+            SimpleStructFis { a: false, b: true },
+            SimpleStructFis { a: true, b: false },
+            SimpleStructFis { a: true, b: true },
+        ]
+    );
+    assert_factory_is_self::<SimpleStructFis>();
+}
+
 /// A struct with type, lifetime, and const parameters, and a trait bound on the type parameter.
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
 struct GenericStruct<'a, T: std::marker::Copy, const N: usize> {
@@ -121,6 +155,27 @@ fn struct_generic() {
             GenericStruct { a: true, b: true, p },
         ]
     );
+}
+
+#[test]
+fn struct_generic_and_fis() {
+    #[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+    #[exhaust(factory_is_self)]
+    struct GenericFis<T: std::marker::Copy> {
+        a: T,
+        b: T,
+    }
+
+    std::assert_eq!(
+        c::<GenericFis<bool>>(),
+        std::vec![
+            GenericFis { a: false, b: false },
+            GenericFis { a: false, b: true },
+            GenericFis { a: true, b: false },
+            GenericFis { a: true, b: true },
+        ]
+    );
+    assert_factory_is_self::<GenericFis<bool>>();
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -174,8 +229,35 @@ fn enum_fieldless_multi() {
     );
 }
 
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[exhaust(factory_is_self)]
+enum FieldlessEnumFis {
+    Foo,
+    Bar,
+    Baz,
+}
+
+#[test]
+fn enum_fieldless_multi_fis() {
+    std::assert_eq!(
+        c::<FieldlessEnumFis>(),
+        std::vec![
+            FieldlessEnumFis::Foo,
+            FieldlessEnumFis::Bar,
+            FieldlessEnumFis::Baz
+        ]
+    );
+    assert_factory_is_self::<FieldlessEnumFis>();
+}
+
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
 enum EnumWithFields {
+    Foo(bool, bool),
+    Bar(bool),
+}
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[exhaust(factory_is_self)]
+enum EnumWithFieldsFis {
     Foo(bool, bool),
     Bar(bool),
 }
@@ -193,6 +275,21 @@ fn enum_fields() {
             EnumWithFields::Bar(true)
         ]
     );
+}
+#[test]
+fn enum_fields_fis() {
+    std::assert_eq!(
+        c::<EnumWithFieldsFis>(),
+        std::vec![
+            EnumWithFieldsFis::Foo(false, false),
+            EnumWithFieldsFis::Foo(false, true),
+            EnumWithFieldsFis::Foo(true, false),
+            EnumWithFieldsFis::Foo(true, true),
+            EnumWithFieldsFis::Bar(false),
+            EnumWithFieldsFis::Bar(true)
+        ]
+    );
+    assert_factory_is_self::<EnumWithFieldsFis>();
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]

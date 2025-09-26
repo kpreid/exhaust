@@ -30,7 +30,7 @@ pub(crate) struct ExhaustFields {
 pub(crate) fn exhaust_iter_fields(
     ctx: &ExhaustContext,
     struct_fields: &syn::Fields,
-    factory_outer_type_path: &TokenStream2,
+    factory_outer_type_path: Option<&TokenStream2>,
     factory_inner_type_constructor: &ConstructorSyntax,
 ) -> ExhaustFields {
     assert!(
@@ -190,8 +190,14 @@ pub(crate) fn exhaust_iter_fields(
         2.. => quote! { let _ = #carries_expr; },
     };
 
-    let factory_item_expr = factory_inner_type_constructor
+    let factory_state_construction_expr = factory_inner_type_constructor
         .value_expr(target_field_names.iter(), field_factory_exprs.iter());
+
+    let factory_construction_expr = if let Some(factory_outer_type_path) = factory_outer_type_path {
+        quote! { #factory_outer_type_path(#factory_state_construction_expr) }
+    } else {
+        factory_state_construction_expr
+    };
 
     // This implementation is analogous to exhaust::ExhaustArray, except that instead of
     // iterating over the indices it has to hardcode each one.
@@ -200,7 +206,7 @@ pub(crate) fn exhaust_iter_fields(
         match (#( #field_iter_fetchers, )*) {
             (#( ::core::option::Option::Some(#factory_value_vars), )*) => {
                 // Construct factory from its fields’ factories, cloning as needed.
-                let factory = #factory_outer_type_path(#factory_item_expr);
+                let factory = #factory_construction_expr;
 
                 // Perform carries from any now-exhausted field iterators.
                 #carries_statement
