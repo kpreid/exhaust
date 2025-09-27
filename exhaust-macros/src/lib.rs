@@ -98,8 +98,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         )),
     }?;
 
-    let (impl_generics, ty_generics, augmented_where_predicates) =
-        ctx.generics_with_bounds(syn::parse_quote! {});
+    let (impl_generics, ty_generics, augmented_where_predicates) = ctx.generics_with_bounds();
 
     Ok(quote! {
         // rust-analyzer (but not rustc) sometimes produces lints on macro generated code it
@@ -264,7 +263,7 @@ fn exhaust_iter_struct(
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
     let (impl_or_decl_generics, ty_generics, augmented_where_predicates) =
-        ctx.generics_with_bounds(syn::parse_quote! {});
+        ctx.generics_with_bounds();
     let iterator_type_name = &ctx.iterator_type_name;
     let factory_type_name = &ctx.factory_type_path()?;
 
@@ -468,8 +467,7 @@ fn exhaust_iter_enum(
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
     let iterator_type_name = &ctx.iterator_type_name;
-    let (impl_generics, ty_generics, augmented_where_predicates) =
-        ctx.generics_with_bounds(syn::parse_quote! {});
+    let (impl_generics, ty_generics, augmented_where_predicates) = ctx.generics_with_bounds();
 
     // If we are generating a factory type and not using the original input type,
     // then generate a name for that type's state enum
