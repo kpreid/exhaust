@@ -62,17 +62,12 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
 
     let item_type_name_str = &item_type_name.to_string();
     let iterator_type_name = common::generated_type_name(item_type_name_str, "Iter");
-    let (factory_type, factory_assoc_type_path) = if factory_is_self {
-        (
-            common::FactoryType::IsSelf,
-            item_type_name.to_token_stream(),
-        )
+    let factory_type = if factory_is_self {
+        common::FactoryType::IsSelf
     } else {
-        let gen = common::generated_type_name(item_type_name_str, "Factory").to_token_stream();
-        (
-            common::FactoryType::Separate(ConstructorSyntax::Braced(gen.clone())),
-            gen,
-        )
+        common::FactoryType::Separate(ConstructorSyntax::Braced(
+            common::generated_type_name(item_type_name_str, "Factory").to_token_stream(),
+        ))
     };
 
     let ctx = ExhaustContext {
@@ -88,6 +83,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         exhaust_crate_path,
         ..
     } = &ctx;
+    let factory_assoc_type_path = ctx.factory_type_path()?;
 
     let (iterator_and_factory_decl, from_factory_body) = match data {
         syn::Data::Struct(s) => exhaust_iter_struct(s, &ctx),
