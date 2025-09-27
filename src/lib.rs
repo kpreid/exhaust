@@ -46,6 +46,9 @@ mod impls;
 
 pub mod iteration;
 
+#[doc(hidden)] // for use by derive macro only
+pub mod mh_;
+
 #[cfg(doctest)]
 pub mod test_compile_fail;
 
@@ -448,13 +451,3 @@ impl<T: Exhaust<Iter: fmt::Debug>> fmt::Debug for Iter<T> {
         f.debug_tuple("exhaust::Iter").field(&self.0).finish()
     }
 }
-
-// -------------------------------------------------------------------------------------------------
-
-/// Convenience trait-alias for helping the derive macro be simpler and generate simpler code.
-///
-/// It includes `Clone + fmt::Debug` because those are the bounds required of factories,
-/// and including them as supertrait bounds here allows avoiding reiterating them.
-#[doc(hidden)]
-pub trait ExhaustWithFactoryEqSelf: Exhaust<Factory = Self> + Clone + fmt::Debug {}
-impl<T> ExhaustWithFactoryEqSelf for T where T: Exhaust<Factory = T> + Clone + fmt::Debug {}

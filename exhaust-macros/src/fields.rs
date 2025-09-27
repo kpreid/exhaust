@@ -39,6 +39,7 @@ pub(crate) fn exhaustion_of_fields(
     );
 
     let crate_path = &ctx.exhaust_crate_path;
+    let helpers = ctx.helpers();
 
     #[allow(clippy::type_complexity)]
     let (
@@ -98,7 +99,7 @@ pub(crate) fn exhaustion_of_fields(
                 #iter_field_name : #crate_path::iteration::peekable_exhaust::<#field_type>()
             },
             quote! {
-                #iter_field_name : ::core::clone::Clone::clone(#iter_field_name)
+                #iter_field_name : #helpers::clone(#iter_field_name)
             },
             iter_field_name.to_token_stream(),
             target_field_name,
@@ -156,15 +157,15 @@ pub(crate) fn exhaustion_of_fields(
                 if i == iter_field_names.len() - 1 {
                     // Advance the "last digit".
                     (
-                        quote! { ::core::iter::Iterator::next(#field_name) },
+                        quote! { #helpers::next(#field_name) },
                         factory_var.to_token_stream(),
                     )
                 } else {
                     // Don't advance the others
                     (
-                        quote! { ::core::iter::Peekable::peek(#field_name) },
+                        quote! { #helpers::peek(#field_name) },
                         // Clone the peeked reference to get a factory value
-                        quote! { ::core::clone::Clone::clone(#factory_var) },
+                        quote! { #helpers::clone(#factory_var) },
                     )
                 }
             })
@@ -213,7 +214,7 @@ pub(crate) fn exhaustion_of_fields(
     let advance = quote! {
         // Gather factory values, peeking all but the last field and advancing the last field.
         if let (
-            #( ::core::option::Option::Some(#factory_value_vars), )*
+            #( #helpers::Some(#factory_value_vars), )*
         ) = (#( #field_iter_fetchers, )*) {
             // Construct factory from its fields’ factories, cloning as needed.
             let factory = #factory_construction_expr;
@@ -221,9 +222,9 @@ pub(crate) fn exhaustion_of_fields(
             // Perform carries from any now-exhausted field iterators.
             #carries_statement
 
-            ::core::option::Option::Some(factory)
+            #helpers::Some(factory)
         } else {
-            ::core::option::Option::None
+            #helpers::None
         }
     };
     ExhaustFields {
