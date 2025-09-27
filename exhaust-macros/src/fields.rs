@@ -27,7 +27,7 @@ pub(crate) struct ExhaustFields {
 /// This code generator cannot be used on zero fields; the caller should handle that
 /// case, because that can be implemented more efficiently given knowledge of the case
 /// where the type is an enum.
-pub(crate) fn exhaust_iter_fields(
+pub(crate) fn exhaustion_of_fields(
     ctx: &ExhaustContext,
     struct_fields: &syn::Fields,
     factory_outer_type_path: Option<&TokenStream2>,
@@ -35,7 +35,7 @@ pub(crate) fn exhaust_iter_fields(
 ) -> ExhaustFields {
     assert!(
         !struct_fields.is_empty(),
-        "exhaust_iter_fields requires at least 1 field"
+        "exhaustion_of_fields requires at least 1 field"
     );
 
     let crate_path = &ctx.exhaust_crate_path;

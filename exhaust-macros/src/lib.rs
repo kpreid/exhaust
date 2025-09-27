@@ -1,20 +1,25 @@
+use proc_macro::TokenStream;
 use std::iter;
 
 use itertools::izip;
-use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, parse_quote, DeriveInput};
 
+// -------------------------------------------------------------------------------------------------
+
 mod common;
 use common::ExhaustContext;
 
 mod fields;
-use fields::{exhaust_iter_fields, ExhaustFields};
+use fields::{exhaustion_of_fields, ExhaustFields};
 
 use crate::common::ConstructorSyntax;
+
+// -------------------------------------------------------------------------------------------------
+// Macro entry point functions
 
 // Note: documentation is on the reexport so that it can have working links.
 #[proc_macro_derive(Exhaust, attributes(exhaust))]
@@ -35,6 +40,9 @@ pub fn impl_exhaust_for_tuples(input: TokenStream) -> TokenStream {
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
+
+// -------------------------------------------------------------------------------------------------
+// Implementations of the macros
 
 fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     let DeriveInput {
@@ -85,9 +93,12 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
     } = &ctx;
     let factory_assoc_type_path = ctx.factory_type_path()?;
 
-    let (iterator_and_factory_decl, from_factory_body) = match data {
-        syn::Data::Struct(s) => exhaust_iter_struct(s, &ctx),
-        syn::Data::Enum(e) => exhaust_iter_enum(e, &ctx),
+    let DerivedParts {
+        iterator_and_factory_items: iterator_and_factory_decl,
+        from_factory_body_expr,
+    } = match data {
+        syn::Data::Struct(s) => derive_exhaust_for_struct(s, &ctx),
+        syn::Data::Enum(e) => derive_exhaust_for_enum(e, &ctx),
         syn::Data::Union(syn::DataUnion { union_token, .. }) => Err(syn::Error::new(
             union_token.span,
             "derive(Exhaust) does not support unions",
@@ -112,7 +123,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
                     ::core::default::Default::default()
                 }
                 fn from_factory(factory: Self::Factory) -> Self {
-                    #from_factory_body
+                    #from_factory_body_expr
                 }
             }
 
@@ -122,140 +133,26 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
 }
 
 fn tuple_impls_up_to(size: u64) -> Result<TokenStream2, syn::Error> {
-    (2..=size).map(tuple_impl).collect()
+    (2..=size).map(derive_exhaust_for_primitive_tuple).collect()
 }
 
-/// Generate an impl of Exhaust for a built-in tuple type.
-///
-/// This is almost but not quite identical to [`exhaust_iter_struct`], due to the syntax
-/// of tuples and due to it being used from the same crate (so that access is via
-/// crate::Exhaust instead of ::exhaust::Exhaust).
-fn tuple_impl(size: u64) -> Result<TokenStream2, syn::Error> {
-    if size < 2 {
-        return Err(syn::Error::new(
-            Span::call_site(),
-            "tuple type of size less than 2 not supported",
-        ));
-    }
+// -------------------------------------------------------------------------------------------------
+// Generating iterators and factories for specific types of items
 
-    let value_type_vars: Vec<Ident> = (0..size)
-        .map(|i| Ident::new(&format!("T{i}"), Span::mixed_site()))
-        .collect();
-    let factory_value_vars: Vec<Ident> = (0..size)
-        .map(|i| Ident::new(&format!("factory{i}"), Span::mixed_site()))
-        .collect();
-    let synthetic_fields: syn::Fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
-        paren_token: syn::token::Paren(Span::mixed_site()),
-        unnamed: value_type_vars
-            .iter()
-            .map(|type_var| syn::Field {
-                attrs: vec![],
-                vis: parse_quote! { pub },
-                mutability: syn::FieldMutability::None,
-                ident: None,
-                colon_token: None,
-                ty: syn::Type::Verbatim(type_var.to_token_stream()),
-            })
-            .collect(),
-    });
+/// Result of the item-kind-specific parts of the deriving algorithm, returned to [`derive_impl()`].
+struct DerivedParts {
+    /// Expression to put in the `Exhaust::from_factory()` associated function.
+    /// Takes the factory as an argument named `factory`.
+    from_factory_body_expr: TokenStream2,
 
-    // Synthesize a good-enough context to use the derive tools.
-    let ctx: ExhaustContext = ExhaustContext {
-        vis: parse_quote! { pub },
-        generics: syn::Generics {
-            lt_token: None,
-            params: value_type_vars
-                .iter()
-                .map(|var| {
-                    syn::GenericParam::Type(syn::TypeParam {
-                        attrs: vec![],
-                        ident: var.clone(),
-                        colon_token: None,
-                        bounds: Punctuated::default(),
-                        eq_token: None,
-                        default: None,
-                    })
-                })
-                .collect(),
-            gt_token: None,
-            where_clause: None,
-        },
-        item_type: ConstructorSyntax::Tuple,
-        factory_type: common::FactoryType::Separate(ConstructorSyntax::Tuple),
-        iterator_type_name: common::generated_type_name("Tuple", "Iter"),
-        exhaust_crate_path: parse_quote! { crate },
-    };
-
-    let iterator_type_name = &ctx.iterator_type_name;
-
-    // Generate the field-exhausting iteration logic
-    let ExhaustFields {
-        state_field_decls,
-        factory_field_decls: _, // unused because we use tuples instead
-        initializers,
-        cloners,
-        field_pats,
-        advance,
-    } = exhaust_iter_fields(
-        &ctx,
-        &synthetic_fields,
-        Some(&quote! {}),
-        &ConstructorSyntax::Tuple,
-    );
-
-    let iterator_impls = ctx.impl_iterator_and_factory_traits(
-        quote! {
-            match self {
-                Self { #field_pats } => {
-                    #advance
-                }
-            }
-        },
-        quote! { Self { #initializers } },
-        quote! {
-            let Self { #field_pats } = self;
-            Self { #cloners }
-        },
-    );
-
-    let iterator_doc = ctx.iterator_doc();
-
-    Ok(quote! {
-        const _: () = {
-            impl<#( #value_type_vars , )*> crate::Exhaust for ( #( #value_type_vars , )* )
-            where #( #value_type_vars : crate::Exhaust, )*
-            {
-                type Iter = #iterator_type_name <#( #value_type_vars , )*>;
-                type Factory = (#(
-                    <#value_type_vars as crate::Exhaust>::Factory,
-                )*);
-                fn exhaust_factories() -> Self::Iter {
-                    ::core::default::Default::default()
-                }
-                fn from_factory(factory: Self::Factory) -> Self {
-                    let (#( #factory_value_vars , )*) = factory;
-                    (#(
-                        <#value_type_vars as crate::Exhaust>::from_factory(#factory_value_vars),
-                    )*)
-                }
-            }
-
-            #[doc = #iterator_doc]
-            pub struct #iterator_type_name <#( #value_type_vars , )*>
-            where #( #value_type_vars : crate::Exhaust, )*
-            {
-                #state_field_decls
-            }
-
-            #iterator_impls
-        };
-    })
+    /// Items which declare the iterator and factory types, and their implementations.
+    iterator_and_factory_items: TokenStream2,
 }
 
-fn exhaust_iter_struct(
+fn derive_exhaust_for_struct(
     s: syn::DataStruct,
     ctx: &ExhaustContext,
-) -> Result<(TokenStream2, TokenStream2), syn::Error> {
+) -> Result<DerivedParts, syn::Error> {
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
     let (impl_or_decl_generics, ty_generics, augmented_where_predicates) =
@@ -317,14 +214,14 @@ fn exhaust_iter_struct(
             quote! {}, // no state struct
             quote! { ::core::clone::Clone::clone(self) },
             quote! { f => f }, // factory transformation is identity
-            exhaust_iter_fields(ctx, &s.fields, None, &ctx.item_type),
+            exhaustion_of_fields(ctx, &s.fields, None, &ctx.item_type),
         )
     } else {
         let factory_state_struct_type = ctx.generated_type_name("FactoryState")?;
         let factory_state_ctor =
             ConstructorSyntax::Braced(factory_state_struct_type.to_token_stream());
 
-        let fields: ExhaustFields = exhaust_iter_fields(
+        let fields: ExhaustFields = exhaustion_of_fields(
             ctx,
             &s.fields,
             Some(ctx.factory_type_path()?),
@@ -421,8 +318,8 @@ fn exhaust_iter_struct(
         },
     );
 
-    Ok((
-        quote! {
+    Ok(DerivedParts {
+        iterator_and_factory_items: quote! {
             // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
             // A wrapper struct is not needed because it always has at least one private field.
             //
@@ -442,7 +339,7 @@ fn exhaust_iter_struct(
             // This is empty for unit structs, which use () as the state type instead.
             #factory_state_struct_decl
         },
-        if ctx.factory_is_self() {
+        from_factory_body_expr: if ctx.factory_is_self() {
             quote! {
                 factory
             }
@@ -453,13 +350,13 @@ fn exhaust_iter_struct(
                 }
             }
         },
-    ))
+    })
 }
 
-fn exhaust_iter_enum(
+fn derive_exhaust_for_enum(
     e: syn::DataEnum,
     ctx: &ExhaustContext,
-) -> Result<(TokenStream2, TokenStream2), syn::Error> {
+) -> Result<DerivedParts, syn::Error> {
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
     let iterator_type_name = &ctx.iterator_type_name;
@@ -543,7 +440,7 @@ fn exhaust_iter_enum(
                     },
                 }
             } else {
-                fields::exhaust_iter_fields(
+                fields::exhaustion_of_fields(
                     ctx,
                     &target_variant.fields,
                     factory_outer_type_path,
@@ -694,7 +591,7 @@ fn exhaust_iter_enum(
         }
     };
 
-    let iterator_decl = quote! {
+    let iterator_and_factory_items = quote! {
         // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
         #vis struct #iterator_type_name #ty_generics
         (#iter_state_enum_type #ty_generics)
@@ -711,7 +608,7 @@ fn exhaust_iter_enum(
         }
     };
 
-    let from_factory_body = if ctx.factory_is_self() {
+    let from_factory_body_expr = if ctx.factory_is_self() {
         quote! { factory }
     } else {
         let factory_to_self_transform = common::clone_like_match_arms(
@@ -729,5 +626,137 @@ fn exhaust_iter_enum(
         }
     };
 
-    Ok((iterator_decl, from_factory_body))
+    Ok(DerivedParts {
+        from_factory_body_expr,
+        iterator_and_factory_items,
+    })
+}
+
+/// Generate an impl of Exhaust for a built-in tuple type.
+///
+/// This is almost but not quite identical to [`derive_exhaust_for_struct()`], due to the syntax
+/// of tuples.
+fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Error> {
+    if size < 2 {
+        return Err(syn::Error::new(
+            Span::call_site(),
+            "tuple type of size less than 2 not supported",
+        ));
+    }
+
+    let value_type_vars: Vec<Ident> = (0..size)
+        .map(|i| Ident::new(&format!("T{i}"), Span::mixed_site()))
+        .collect();
+    let factory_value_vars: Vec<Ident> = (0..size)
+        .map(|i| Ident::new(&format!("factory{i}"), Span::mixed_site()))
+        .collect();
+    let synthetic_fields: syn::Fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
+        paren_token: syn::token::Paren(Span::mixed_site()),
+        unnamed: value_type_vars
+            .iter()
+            .map(|type_var| syn::Field {
+                attrs: vec![],
+                vis: parse_quote! { pub },
+                mutability: syn::FieldMutability::None,
+                ident: None,
+                colon_token: None,
+                ty: syn::Type::Verbatim(type_var.to_token_stream()),
+            })
+            .collect(),
+    });
+
+    // Synthesize a good-enough context to use the derive tools.
+    let ctx: ExhaustContext = ExhaustContext {
+        vis: parse_quote! { pub },
+        generics: syn::Generics {
+            lt_token: None,
+            params: value_type_vars
+                .iter()
+                .map(|var| {
+                    syn::GenericParam::Type(syn::TypeParam {
+                        attrs: vec![],
+                        ident: var.clone(),
+                        colon_token: None,
+                        bounds: Punctuated::default(),
+                        eq_token: None,
+                        default: None,
+                    })
+                })
+                .collect(),
+            gt_token: None,
+            where_clause: None,
+        },
+        item_type: ConstructorSyntax::Tuple,
+        factory_type: common::FactoryType::Separate(ConstructorSyntax::Tuple),
+        iterator_type_name: common::generated_type_name("Tuple", "Iter"),
+        // The `exhaust` crate declares `extern crate self as exhaust`, so strictly speaking this
+        // path could be `::exhaust` just like the normal derives, but we have this option, so we
+        // use it.
+        exhaust_crate_path: parse_quote! { crate },
+    };
+
+    let iterator_type_name = &ctx.iterator_type_name;
+
+    // Generate the field-exhausting iteration logic
+    let ExhaustFields {
+        state_field_decls,
+        factory_field_decls: _, // unused because we use tuples instead
+        initializers,
+        cloners,
+        field_pats,
+        advance,
+    } = exhaustion_of_fields(
+        &ctx,
+        &synthetic_fields,
+        Some(&quote! {}),
+        &ConstructorSyntax::Tuple,
+    );
+
+    let iterator_impls = ctx.impl_iterator_and_factory_traits(
+        quote! {
+            match self {
+                Self { #field_pats } => {
+                    #advance
+                }
+            }
+        },
+        quote! { Self { #initializers } },
+        quote! {
+            let Self { #field_pats } = self;
+            Self { #cloners }
+        },
+    );
+
+    let iterator_doc = ctx.iterator_doc();
+
+    Ok(quote! {
+        const _: () = {
+            impl<#( #value_type_vars , )*> crate::Exhaust for ( #( #value_type_vars , )* )
+            where #( #value_type_vars : crate::Exhaust, )*
+            {
+                type Iter = #iterator_type_name <#( #value_type_vars , )*>;
+                type Factory = (#(
+                    <#value_type_vars as crate::Exhaust>::Factory,
+                )*);
+                fn exhaust_factories() -> Self::Iter {
+                    ::core::default::Default::default()
+                }
+                fn from_factory(factory: Self::Factory) -> Self {
+                    let (#( #factory_value_vars , )*) = factory;
+                    (#(
+                        <#value_type_vars as crate::Exhaust>::from_factory(#factory_value_vars),
+                    )*)
+                }
+            }
+
+            #[doc = #iterator_doc]
+            pub struct #iterator_type_name <#( #value_type_vars , )*>
+            where #( #value_type_vars : crate::Exhaust, )*
+            {
+                #state_field_decls
+            }
+
+            #iterator_impls
+        };
+    })
 }
