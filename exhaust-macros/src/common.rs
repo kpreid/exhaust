@@ -83,17 +83,19 @@ impl ExhaustContext {
         parse_quote! { #path }
     }
 
-    /// As [`syn::Generics::split_for_impl`], but adding the given bounds,
-    /// as well as the `::exhaust::Exhaust` bound.
+    /// As [`syn::Generics::split_for_impl`], but adding the `::exhaust::Exhaust` bound.
+    ///
+    /// TODO: this used to take arguments for extra bounds, but now that it doesn't,
+    /// maybe the results of this should be precomputed and stored in `ExhaustContext`.
     pub fn generics_with_bounds(
         &self,
-        mut bounds: Punctuated<syn::TypeParamBound, syn::Token![+]>,
     ) -> (
         syn::ImplGenerics<'_>,
         syn::TypeGenerics<'_>,
         Punctuated<syn::WherePredicate, syn::token::Comma>,
     ) {
-        bounds.push(syn::TypeParamBound::Trait(self.exhaust_trait_bound()));
+        let bounds =
+            Punctuated::from_iter([syn::TypeParamBound::Trait(self.exhaust_trait_bound())]);
         let generics = &self.generics;
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let mut augmented_where_predicates = match where_clause {
@@ -145,8 +147,7 @@ impl ExhaustContext {
     ) -> TokenStream2 {
         let exhaust_crate_path = &self.exhaust_crate_path;
         let iterator_type_name = &self.iterator_type_name;
-        let (impl_generics, ty_generics, augmented_where_predicates) =
-            self.generics_with_bounds(syn::parse_quote! {});
+        let (impl_generics, ty_generics, augmented_where_predicates) = self.generics_with_bounds();
         let item_type_inst = self.item_type.parameterized(&self.generics);
 
         let factory_impls = match &self.factory_type {
