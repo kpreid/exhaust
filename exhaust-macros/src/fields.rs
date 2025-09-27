@@ -203,17 +203,18 @@ pub(crate) fn exhaustion_of_fields(
     // iterating over the indices it has to hardcode each one.
     let advance = quote! {
         // Gather factory values, peeking all but the last field and advancing the last field.
-        match (#( #field_iter_fetchers, )*) {
-            (#( ::core::option::Option::Some(#factory_value_vars), )*) => {
-                // Construct factory from its fields’ factories, cloning as needed.
-                let factory = #factory_construction_expr;
+        if let (
+            #( ::core::option::Option::Some(#factory_value_vars), )*
+        ) = (#( #field_iter_fetchers, )*) {
+            // Construct factory from its fields’ factories, cloning as needed.
+            let factory = #factory_construction_expr;
 
-                // Perform carries from any now-exhausted field iterators.
-                #carries_statement
+            // Perform carries from any now-exhausted field iterators.
+            #carries_statement
 
-                ::core::option::Option::Some(factory)
-            }
-            _ => ::core::option::Option::None
+            ::core::option::Option::Some(factory)
+        } else {
+            ::core::option::Option::None
         }
     };
     ExhaustFields {
