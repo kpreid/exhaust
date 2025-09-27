@@ -178,10 +178,8 @@ mod sync {
     }
     impl_newtype_generic!(T: [], sync::mpsc::SendError<T>, sync::mpsc::SendError);
 
-    // TODO: Add `OnceLock` when we bump MSRV.
-    //
     // * sync::Condvar is stateful in a way we cannot handle.
-    // * sync::Once could be implemented, but is dubious.
+    // * sync::Once could be implemented, but is very unlikely to be useful.
     // * sync::TryLockError could be implemented, but it doesn’t make sense to do so, since the
     //   thing it is expected to contain is a lock guard, which we cannot construct.
 
