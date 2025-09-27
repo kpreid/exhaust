@@ -92,6 +92,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
         ..
     } = &ctx;
     let factory_assoc_type_path = ctx.factory_type_path()?;
+    let helpers = ctx.helpers();
 
     let DerivedParts {
         iterator_and_factory_items: iterator_and_factory_decl,
@@ -120,7 +121,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
                 type Iter = #iterator_type_name #ty_generics;
                 type Factory = #factory_assoc_type_path #ty_generics;
                 fn exhaust_factories() -> Self::Iter {
-                    ::core::default::Default::default()
+                    #helpers::default()
                 }
                 fn from_factory(factory: Self::Factory) -> Self {
                     #from_factory_body_expr
@@ -155,6 +156,7 @@ fn derive_exhaust_for_struct(
 ) -> Result<DerivedParts, syn::Error> {
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
+    let helpers = ctx.helpers();
     let (impl_or_decl_generics, ty_generics, augmented_where_predicates) =
         ctx.generics_with_bounds();
     let iterator_type_name = &ctx.iterator_type_name;
@@ -192,10 +194,10 @@ fn derive_exhaust_for_struct(
             field_pats: quote! { done, },
             advance: quote! {
                 if *done {
-                    ::core::option::Option::None
+                    #helpers::None
                 } else {
                     *done = true;
-                    ::core::option::Option::Some(#factory_ctor_expr)
+                    #helpers::Some(#factory_ctor_expr)
                 }
             },
         };
@@ -212,7 +214,7 @@ fn derive_exhaust_for_struct(
         (
             quote! {}, // no state struct
             quote! {}, // no state struct
-            quote! { ::core::clone::Clone::clone(self) },
+            quote! { #helpers::clone(self) },
             quote! { f => f }, // factory transformation is identity
             exhaustion_of_fields(ctx, &s.fields, None, &ctx.item_type),
         )
@@ -254,7 +256,7 @@ fn derive_exhaust_for_struct(
             factory_state_ctor.path()?,
             factory_state_ctor.path()?,
             &quote! { ref },
-            |expr| quote! { ::core::clone::Clone::clone(#expr) },
+            |expr| quote! { #helpers::clone(#expr) },
         );
 
         let factory_to_self_transform_arm = if ctx.factory_is_self() {
@@ -293,7 +295,7 @@ fn derive_exhaust_for_struct(
                 where #augmented_where_predicates;
 
                 // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
-                impl #impl_or_decl_generics ::core::clone::Clone for #factory_type
+                impl #impl_or_decl_generics #helpers::Clone for #factory_type
                 where #augmented_where_predicates {
                     fn clone(&self) -> Self {
                         Self(#factory_state_struct_clone_expr)
@@ -358,6 +360,7 @@ fn derive_exhaust_for_enum(
 ) -> Result<DerivedParts, syn::Error> {
     let vis = &ctx.vis;
     let exhaust_crate_path = &ctx.exhaust_crate_path;
+    let helpers = ctx.helpers();
     let iterator_type_name = &ctx.iterator_type_name;
     let (impl_generics, ty_generics, augmented_where_predicates) = ctx.generics_with_bounds();
 
@@ -506,7 +509,7 @@ fn derive_exhaust_for_enum(
                 };
                 quote! {
                     self.0 = #next_state_initializer;
-                    ::core::option::Option::Some(#factory_ctor_expr)
+                    #helpers::Some(#factory_ctor_expr)
                 }
             } else {
                 quote! {
@@ -514,8 +517,8 @@ fn derive_exhaust_for_enum(
                     // `Option` and then immediately matching it again.
                     let maybe_this_variant = #field_advancer;
                     match maybe_this_variant {
-                        ::core::option::Option::Some(_) => maybe_this_variant,
-                        ::core::option::Option::None => {
+                        #helpers::Some(_) => maybe_this_variant,
+                        #helpers::None => {
                             self.0 = #next_state_initializer;
                             continue 'variants
                         }
@@ -535,7 +538,7 @@ fn derive_exhaust_for_enum(
             'variants: loop {
                 break 'variants match &mut self.0 {
                     #( #variant_next_arms , )*
-                    #iter_state_enum_type::#done_variant => ::core::option::Option::None,
+                    #iter_state_enum_type::#done_variant => #helpers::None,
                 }
             }
         },
@@ -560,7 +563,7 @@ fn derive_exhaust_for_enum(
                 factory_state_enum_type,
                 factory_state_enum_type,
                 &quote! { ref },
-                |expr| quote! { ::core::clone::Clone::clone(#expr) },
+                |expr| quote! { #helpers::clone(#expr) },
             );
 
             let decl_and_impls = quote! {
@@ -573,7 +576,7 @@ fn derive_exhaust_for_enum(
                 where #augmented_where_predicates { #( #factory_variant_decls ,)* }
 
                 // A manual impl of Clone is required to *not* have a `Clone` bound on the generics.
-                impl #impl_generics ::core::clone::Clone for #factory_type
+                impl #impl_generics #helpers::Clone for #factory_type
                 where #augmented_where_predicates {
                     fn clone(&self) -> Self {
                         #![allow(unreachable_code)] // in case of empty enum
@@ -692,6 +695,7 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
         exhaust_crate_path: parse_quote! { crate },
     };
 
+    let helpers = ctx.helpers();
     let iterator_type_name = &ctx.iterator_type_name;
 
     // Generate the field-exhausting iteration logic
@@ -740,7 +744,7 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
                     <#value_type_vars as crate::Exhaust>::Factory,
                 )*);
                 fn exhaust_factories() -> Self::Iter {
-                    ::core::default::Default::default()
+                    #helpers::default()
                 }
                 fn from_factory(factory: Self::Factory) -> Self {
                     let (#( #factory_value_vars , )*) = factory;
