@@ -293,14 +293,20 @@ pub trait Exhaust: Sized {
 ///
 /// # Applicability
 ///
-/// This macro may be applied to `struct`s and `enum`s, but not `union`s.
-/// All fields must have types which themselves implement [`Exhaust`].
+/// This macro can be used when:
+///
+/// * The type is a `struct` or `enum` (not a `union`).
+/// * All fields implement [`Exhaust`].
+/// * The type **does not have any invariants** other than the intrinsic one that its fields
+///   are properly initialized.
 ///
 /// <div class="warning">
 ///
 /// If your type has invariants enforced through private fields, then do not use this derive macro,
-/// as that would make it possible to obtain instances with any values whatsoever.
-/// There is not currently any way to add constraints.
+/// as that would make it possible to obtain instances with any values whatsoever
+/// (similar to implementing a deserialization trait).
+/// There is not currently any way to add constraints that reduce the possible values of fields
+/// or relate fields to each other.
 ///
 /// </div>
 ///
@@ -312,11 +318,22 @@ pub trait Exhaust: Sized {
 /// * `#[exhaust(factory_is_self)]`
 ///
 ///   Makes the `<Self as Exhaust>::Factory` associated type be `Self` instead of a newly
-///   generated type. This allows the macro to generate less code, but is a public API change.
-///   It can only be done when:
+///   generated type. This allows the macro to generate less code, but requires that:
 ///
 ///   * The type implements [`Clone`] and [`fmt::Debug`].
 ///   * All of its fields *also* implement `Exhaust<Factory = Self>`.
+///     This is the case for all primitive types such as `bool` and `i32`, but is not generally
+///     guaranteed to be true for any other implementation.
+///
+///   We recommend that you use `factory_is_self` primarily for fieldless enums and types that
+///   contain them, that you fully control.
+///
+///   ```
+///   # use exhaust::Exhaust;
+///   #[derive(Clone, Debug, Exhaust)]
+///   #[exhaust(factory_is_self)]
+///   enum ExampleOfFactoryIsSelf { One, Two }
+///   ```
 ///
 /// # Generated code
 ///
