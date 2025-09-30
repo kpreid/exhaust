@@ -11,13 +11,11 @@ macro_rules! impl_atomic {
         }
     };
 }
-use impl_atomic;
 
 #[rustfmt::skip]
 mod atomic_impl {
     use core::sync::atomic;
     use crate::Exhaust;
-    use super::impl_atomic;
 
     #[cfg(target_has_atomic = "8")]  impl_atomic!(bool, AtomicBool);
     #[cfg(target_has_atomic = "8")]  impl_atomic!(i8, AtomicI8);
