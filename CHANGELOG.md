@@ -6,8 +6,8 @@
 
 * The derive macro now supports a configuration attribute `#[exhaust(factory_is_self)]`,
   which disables generation of a separate `Exhaust::Factory` type.
-  This can be used to simplify the macro-generated code when the type being derived on
-  implements `Clone` and `Debug`.
+  This can be used to simplify the macro-generated code to improve build performance,
+  but has particular requirements; see the derive macro’s documentation for details.
 
 ## 0.2.4 (2025-08-25)
 
