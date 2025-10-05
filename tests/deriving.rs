@@ -338,6 +338,26 @@ fn enum_with_uninhabited_generic() {
     );
 }
 
+// Test specifically newtypes (structs with exactly one field).
+// We may decide to add optimizations for this case in the future, so test it in isolation.
+#[test]
+fn newtype_struct() {
+    #[derive(Debug, exhaust::Exhaust, PartialEq)]
+    struct NewtypeStruct<T>(T);
+
+    c::<NewtypeStruct<bool>>();
+    // using FieldlessEnum as a non-factory_is_self implementation to use in our generic newtype
+    c::<NewtypeStruct<FieldlessEnum>>();
+}
+#[test]
+fn newtype_struct_fis() {
+    #[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+    #[exhaust(factory_is_self)]
+    struct NewtypeStructFis<T>(T);
+
+    c::<NewtypeStructFis<bool>>();
+}
+
 mod module {
     #[derive(::exhaust::Exhaust)]
     enum _EnumInsideMod<T> {
