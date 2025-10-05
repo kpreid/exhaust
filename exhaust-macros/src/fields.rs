@@ -33,13 +33,91 @@ pub(crate) fn exhaustion_of_fields(
     factory_outer_type_path: Option<&TokenStream2>,
     factory_inner_type_constructor: &ConstructorSyntax,
 ) -> ExhaustFields {
-    assert!(
-        !struct_fields.is_empty(),
-        "exhaustion_of_fields requires at least 1 field"
-    );
-
     let crate_path = &ctx.exhaust_crate_path;
     let helpers = ctx.helpers();
+
+    let factory_field_decls = match struct_fields {
+        syn::Fields::Named(fields) => syn::Fields::Named(syn::FieldsNamed {
+            brace_token: syn::token::Brace::default(),
+            named: fields
+                .named
+                .iter()
+                .map(|field| -> syn::Field {
+                    let ident = &field.ident;
+                    let ty = &field.ty;
+                    syn::parse_quote! {
+                        #ident : <#ty as #crate_path::Exhaust>::Factory
+                    }
+                })
+                .collect(),
+        }),
+        syn::Fields::Unnamed(fields) => syn::Fields::Unnamed(syn::FieldsUnnamed {
+            paren_token: syn::token::Paren::default(),
+            unnamed: fields
+                .unnamed
+                .iter()
+                .map(|field| -> syn::Field {
+                    let ty = &field.ty;
+                    syn::parse_quote! {
+                        <#ty as #crate_path::Exhaust>::Factory
+                    }
+                })
+                .collect(),
+        }),
+        syn::Fields::Unit => syn::Fields::Unit,
+    };
+
+    match struct_fields.len() {
+        0 => panic!("exhaustion_of_fields() requires at least 1 field"),
+
+        // Special case for one field.
+        // In this case, we do not use any peekable iterators, and instead delegate more directly
+        // to the field's iterator.
+        // This reduces the size of the iterator struct, as well as the code.
+        1 => {
+            let single_field = struct_fields.iter().next().unwrap();
+            let field_type = &single_field.ty;
+            let field_iter_var = Ident::new("iter", Span::mixed_site());
+            let field_value_var = Ident::new("field_value", Span::mixed_site());
+
+            let factory_state_expr = factory_inner_type_constructor.value_expr(
+                [match single_field.ident {
+                    Some(ref ident) => ident.to_token_stream(),
+                    None => quote! { 0 },
+                }]
+                .iter(),
+                [field_value_var.to_token_stream()].iter(),
+            );
+            // TODO: refactor this duplicate “add the wrapper if there is any” code
+            let factory_expr = if let Some(factory_outer_type_path) = factory_outer_type_path {
+                quote! { #factory_outer_type_path(#factory_state_expr) }
+            } else {
+                factory_state_expr
+            };
+
+            return ExhaustFields {
+                state_field_decls: syn::Fields::Unnamed(
+                    syn::parse_quote! { (<#field_type as #crate_path::Exhaust>::Iter) },
+                ),
+                factory_field_decls,
+                initializers: quote! {
+                    0: <#field_type as #crate_path::Exhaust>::exhaust_factories()
+                },
+                cloners: quote! {
+                    0: ::core::clone::Clone::clone(#field_iter_var)
+                },
+                field_pats: quote! { 0: #field_iter_var },
+                advance: quote! {
+                    match #helpers::next(#field_iter_var) {
+                        #helpers::Some(#field_value_var) => #helpers::Some(#factory_expr),
+                        #helpers::None => #helpers::None,
+                    }
+                },
+            };
+        }
+
+        2.. => { /* fall rthrough to general case */ }
+    }
 
     #[allow(clippy::type_complexity)]
     let (
@@ -107,37 +185,6 @@ pub(crate) fn exhaustion_of_fields(
             factory_var_name,
         )
     }));
-
-    let factory_field_decls = match struct_fields {
-        syn::Fields::Named(fields) => syn::Fields::Named(syn::FieldsNamed {
-            brace_token: syn::token::Brace::default(),
-            named: fields
-                .named
-                .iter()
-                .map(|field| -> syn::Field {
-                    let ident = &field.ident;
-                    let ty = &field.ty;
-                    syn::parse_quote! {
-                        #ident : <#ty as #crate_path::Exhaust>::Factory
-                    }
-                })
-                .collect(),
-        }),
-        syn::Fields::Unnamed(fields) => syn::Fields::Unnamed(syn::FieldsUnnamed {
-            paren_token: syn::token::Paren::default(),
-            unnamed: fields
-                .unnamed
-                .iter()
-                .map(|field| -> syn::Field {
-                    let ty = &field.ty;
-                    syn::parse_quote! {
-                        <#ty as #crate_path::Exhaust>::Factory
-                    }
-                })
-                .collect(),
-        }),
-        syn::Fields::Unit => syn::Fields::Unit,
-    };
 
     let state_field_decls = syn::Fields::Named(syn::FieldsNamed {
         brace_token: syn::token::Brace::default(),
