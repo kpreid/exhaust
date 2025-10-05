@@ -9,6 +9,10 @@
   This can be used to simplify the macro-generated code to improve build performance,
   but has particular requirements; see the derive macro’s documentation for details.
 
+### Changed
+
+* `derive(Exhaust)` generates smaller iterators for structs or enum variants with exactly one field.
+
 ## 0.2.4 (2025-08-25)
 
 ### Added

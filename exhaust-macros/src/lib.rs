@@ -320,16 +320,39 @@ fn derive_exhaust_for_struct(
         },
     );
 
+    // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
+    // A wrapper struct is not needed because it always has at least one private field
+    // -- for a struct, the field iterators, and for an enum, a private state enum.
+    //
+    // Note: The iterator struct must have trait bounds because its fields, being of type
+    // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
+    //
+    // Note: Constructing an `ItemStruct` for this is tedious but handles putting the where
+    // clause in the right place for tuple structs.
+    let iter_struct_declaration = syn::ItemStruct {
+        attrs: vec![],
+        vis: vis.clone(),
+        struct_token: Default::default(),
+        ident: iterator_type_name.clone(),
+        generics: syn::Generics {
+            where_clause: if augmented_where_predicates.is_empty() {
+                None
+            } else {
+                Some(syn::WhereClause {
+                    where_token: Default::default(),
+                    predicates: augmented_where_predicates,
+                })
+            },
+            // TODO: kludge. Stop using split_for_impl() to get rid of this
+            ..syn::parse_quote! { #impl_or_decl_generics }
+        },
+        fields: state_field_decls,
+        semi_token: None,
+    };
+
     Ok(DerivedParts {
         iterator_and_factory_items: quote! {
-            // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
-            // A wrapper struct is not needed because it always has at least one private field.
-            //
-            // Note: The iterator struct must have trait bounds because its fields, being of type
-            // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
-            #vis struct #iterator_type_name #impl_or_decl_generics
-            where #augmented_where_predicates
-            #state_field_decls
+            #iter_struct_declaration
 
             #factory_struct_decl_and_impls
 

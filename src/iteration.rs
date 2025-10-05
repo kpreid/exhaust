@@ -21,7 +21,7 @@ pub fn peekable_exhaust<T: Exhaust>() -> Pei<T> {
     T::exhaust_factories().peekable()
 }
 
-/// Perform “carry” within a pair of peekable iterators.
+/// Perform “carry” within a pair of iterators.
 ///
 /// That is, if `low` has no more elements, advance `high`, and replace `low`
 /// with a fresh iterator from the factory function.
@@ -50,7 +50,7 @@ pub fn peekable_exhaust<T: Exhaust>() -> Pei<T> {
 /// assert!(!carried);
 /// assert_eq!([high.peek(), low.peek()], [Some(&1), Some(&0)]);
 /// ```
-pub fn carry<I, J, F>(high: &mut Peekable<I>, low: &mut Peekable<J>, factory: F) -> bool
+pub fn carry<I, J, F>(high: &mut I, low: &mut Peekable<J>, factory: F) -> bool
 where
     I: Iterator,
     J: Iterator,

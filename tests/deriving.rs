@@ -339,7 +339,7 @@ fn enum_with_uninhabited_generic() {
 }
 
 // Test specifically newtypes (structs with exactly one field).
-// We may decide to add optimizations for this case in the future, so test it in isolation.
+// We have optimizations for this case, so test it.
 #[test]
 fn newtype_struct() {
     #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -348,6 +348,13 @@ fn newtype_struct() {
     c::<NewtypeStruct<bool>>();
     // using FieldlessEnum as a non-factory_is_self implementation to use in our generic newtype
     c::<NewtypeStruct<FieldlessEnum>>();
+
+    // Check that the newtype's iterator is not bigger (because it is itself a newtype).
+    // (This is not technically guaranteed by Rust unless we add a `repr(transparent)`, though.)
+    std::assert_eq!(
+        p::size_of::<<NewtypeStruct<bool> as exhaust::Exhaust>::Iter>(),
+        p::size_of::<<bool as exhaust::Exhaust>::Iter>()
+    );
 }
 #[test]
 fn newtype_struct_fis() {
