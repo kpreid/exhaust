@@ -7,8 +7,8 @@ use crate::common::{ConstructorSyntax, ExhaustContext};
 /// Pieces of the implementation of a product iterator, over fields of a struct
 /// or enum variant.
 pub(crate) struct ExhaustFields {
-    /// Field declarations for the iterator state, with trailing comma.
-    pub state_field_decls: TokenStream2,
+    /// Field declarations for the iterator state struct/variant.
+    pub state_field_decls: syn::Fields,
     /// Field declarations for the factory struct/variant.
     pub factory_field_decls: syn::Fields,
     /// Field initializers for [`Self::fields`], with trailing comma.
@@ -42,7 +42,7 @@ pub(crate) fn exhaustion_of_fields(
 
     #[allow(clippy::type_complexity)]
     let (
-        iterator_fields,
+        iterator_state_fields,
         iterator_fields_init,
         iterator_fields_clone,
         iter_field_names,
@@ -50,7 +50,7 @@ pub(crate) fn exhaustion_of_fields(
         field_types,
         factory_value_vars,
     ): (
-        Vec<TokenStream2>,
+        Punctuated<syn::Field, syn::Token![,]>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -71,8 +71,7 @@ pub(crate) fn exhaustion_of_fields(
                 None => format!("iter_f_{index}"),
             },
             Span::mixed_site(),
-        )
-        .to_token_stream();
+        );
 
         // Generate a variable name to use when fetching the current values of the iterators.
         let factory_var_name = Ident::new(
@@ -87,8 +86,13 @@ pub(crate) fn exhaustion_of_fields(
         let field_type = &field.ty;
 
         (
-            quote! {
-                #iter_field_name : #crate_path::iteration::Pei<#field_type>
+            syn::Field {
+                attrs: Vec::new(),
+                vis: syn::Visibility::Inherited,
+                mutability: syn::FieldMutability::None,
+                ident: Some(iter_field_name.clone()),
+                colon_token: None,
+                ty: syn::parse_quote! { #crate_path::iteration::Pei<#field_type> },
             },
             quote! {
                 #iter_field_name : #crate_path::iteration::peekable_exhaust::<#field_type>()
@@ -96,7 +100,7 @@ pub(crate) fn exhaustion_of_fields(
             quote! {
                 #iter_field_name : ::core::clone::Clone::clone(#iter_field_name)
             },
-            iter_field_name,
+            iter_field_name.to_token_stream(),
             target_field_name,
             field_type.clone().to_token_stream(),
             factory_var_name,
@@ -133,6 +137,11 @@ pub(crate) fn exhaustion_of_fields(
         }),
         syn::Fields::Unit => syn::Fields::Unit,
     };
+
+    let state_field_decls = syn::Fields::Named(syn::FieldsNamed {
+        brace_token: syn::token::Brace::default(),
+        named: iterator_state_fields,
+    });
 
     // Peek each field's iterator, except the last which is advanced.
     // The results of `field_iter_fetchers` will be matched against `Some(#factory_var)`.
@@ -218,9 +227,7 @@ pub(crate) fn exhaustion_of_fields(
         }
     };
     ExhaustFields {
-        state_field_decls: quote! {
-            #( #iterator_fields , )*
-        },
+        state_field_decls,
         factory_field_decls,
         initializers: quote! {
             #( #iterator_fields_init , )*

@@ -185,7 +185,7 @@ fn derive_exhaust_for_struct(
         };
 
         let fields = ExhaustFields {
-            state_field_decls: quote! { done: bool, },
+            state_field_decls: syn::Fields::Named(syn::parse_quote! { { done: bool } }),
             factory_field_decls: syn::Fields::Unit,
             initializers: quote! { done: false, },
             cloners: quote! { done: *done, },
@@ -326,9 +326,8 @@ fn derive_exhaust_for_struct(
             // Note: The iterator struct must have trait bounds because its fields, being of type
             // `<SomeOtherTy as Exhaust>::Iter`, require that `SomeOtherTy: Exhaust`.
             #vis struct #iterator_type_name #impl_or_decl_generics
-            where #augmented_where_predicates {
-                #state_field_decls
-            }
+            where #augmented_where_predicates
+            #state_field_decls
 
             #factory_struct_decl_and_impls
 
@@ -430,7 +429,7 @@ fn derive_exhaust_for_enum(
             } = if target_variant.fields.is_empty() {
                 // TODO: don't even construct this dummy value (needs refactoring)
                 fields::ExhaustFields {
-                    state_field_decls: quote! {},
+                    state_field_decls: syn::Fields::Unit,
                     factory_field_decls: syn::Fields::Unit,
                     initializers: quote! {},
                     cloners: quote! {},
@@ -450,9 +449,7 @@ fn derive_exhaust_for_enum(
 
             (
                 quote! {
-                    #state_ident {
-                        #state_field_decls
-                    }
+                    #state_ident #state_field_decls
                 },
                 quote! {
                     #iter_state_enum_type :: #state_ident { #state_fields_init }
@@ -711,6 +708,10 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
         Some(&quote! {}),
         &ConstructorSyntax::Tuple,
     );
+    assert!(
+        !state_field_decls.is_empty(),
+        "derived iterator must have at least one field"
+    );
 
     let iterator_impls = ctx.impl_iterator_and_factory_traits(
         quote! {
@@ -752,9 +753,7 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
             #[doc = #iterator_doc]
             pub struct #iterator_type_name <#( #value_type_vars , )*>
             where #( #value_type_vars : crate::Exhaust, )*
-            {
-                #state_field_decls
-            }
+            #state_field_decls
 
             #iterator_impls
         };
