@@ -729,12 +729,7 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
         cloners,
         field_pats,
         advance,
-    } = exhaustion_of_fields(
-        &ctx,
-        &synthetic_fields,
-        Some(&quote! {}),
-        &ConstructorSyntax::Tuple,
-    );
+    } = exhaustion_of_fields(&ctx, &synthetic_fields, None, &ConstructorSyntax::Tuple);
     assert!(
         !state_field_decls.is_empty(),
         "derived iterator must have at least one field"
