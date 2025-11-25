@@ -29,7 +29,7 @@ jobs:
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Install Rust toolchain
       # Install exactly what we need: compiler, Cargo, clippy, rustfmt
@@ -102,7 +102,7 @@ jobs:
       RUSTFLAGS: '-Dwarnings'
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Install Rust toolchain
       run: |
@@ -130,14 +130,14 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - run: cargo fmt --check
           
   no_std:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Install Rust toolchain
       run: |
@@ -161,7 +161,7 @@ jobs:
     # Running on push would require more work to determine the base revision
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           # Needed to ensure `main` branch is needed
           fetch-depth: 0
@@ -191,7 +191,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - uses: Swatinem/rust-cache@v2.8.1
 
