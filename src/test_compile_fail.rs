@@ -34,6 +34,11 @@ pub struct OptionFactoryNotAccessible;
 /// ```
 pub struct ConflictWithGeneratedTypeNames;
 
+/// ```compile_fail
+/// const TOO_MANY_VALS: usize = <[u8; 8] as exhaust::Indexable>::VALUE_COUNT;
+/// ```
+pub struct IndexableArrayTooLarge;
+
 /// Tests of the parsing of the `#[exhaust]` attribute.
 mod attr {
     /// ```compile_fail

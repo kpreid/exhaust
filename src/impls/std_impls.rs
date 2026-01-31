@@ -1,12 +1,13 @@
 #![allow(clippy::wildcard_imports)]
 
+use core::ops::Deref;
 use core::pin::Pin;
 use core::{fmt, iter};
 
 use crate::iteration::{peekable_exhaust, FlatZipMap};
 use crate::patterns::{
-    delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_singleton,
-    impl_via_array,
+    delegate_factory_and_iter, factory_is_self, impl_newtype_generic,
+    impl_newtype_generic_indexable, impl_singleton, impl_via_small_list,
 };
 use crate::Exhaust;
 
@@ -140,8 +141,8 @@ mod sync {
     use super::*;
     use std::sync;
 
-    impl_newtype_generic!(T: [], sync::Arc<T>, sync::Arc::new);
-    impl_newtype_generic!(T: [], Pin<sync::Arc<T>>, sync::Arc::pin);
+    impl_newtype_generic_indexable!(T: [], sync::Arc<T>, sync::Arc::new, Deref::deref);
+    impl_newtype_generic_indexable!(T: [], Pin<sync::Arc<T>>, sync::Arc::pin, Deref::deref);
 
     impl_newtype_generic!(T: [], sync::Mutex<T>, sync::Mutex::new);
     impl_newtype_generic!(T: [], sync::RwLock<T>, sync::RwLock::new);
@@ -161,11 +162,11 @@ mod sync {
         }
     }
 
-    impl_via_array!(
+    impl_via_small_list!(
         sync::mpsc::RecvTimeoutError,
         [Self::Timeout, Self::Disconnected]
     );
-    impl_via_array!(sync::mpsc::TryRecvError, [Self::Empty, Self::Disconnected]);
+    impl_via_small_list!(sync::mpsc::TryRecvError, [Self::Empty, Self::Disconnected]);
     impl_singleton!([], sync::mpsc::RecvError, sync::mpsc::RecvError);
     impl<T: Exhaust> Exhaust for sync::mpsc::TrySendError<T> {
         delegate_factory_and_iter!(remote::TrySendError<T>);
