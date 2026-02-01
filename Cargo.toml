@@ -42,7 +42,7 @@ required-features = ["alloc"]
 exhaust-macros = { version = "=0.3.0", path = "exhaust-macros" }
 # itertools is used for its powerset iterator, which is only available with alloc
 itertools = { workspace = true, optional = true }
-mutants = "0.0.3"
+mutants = ">=0.0.1, <0.0.5"
 
 [workspace.dependencies]
 # Minimum version of `itertools` is 0.13.0 because we need this bug fixed,
