@@ -59,11 +59,11 @@ impl<T: Exhaust, N> iter::FusedIterator for ExhaustNonZero<T, N> {}
 impl_via_array!(
     num::FpCategory,
     [
-        Self::Nan,
-        Self::Infinite,
-        Self::Zero,
-        Self::Subnormal,
-        Self::Normal,
+        num::FpCategory::Nan,
+        num::FpCategory::Infinite,
+        num::FpCategory::Zero,
+        num::FpCategory::Subnormal,
+        num::FpCategory::Normal,
     ]
 );
 

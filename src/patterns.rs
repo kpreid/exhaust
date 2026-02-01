@@ -60,15 +60,66 @@ macro_rules! impl_singleton {
 }
 pub(crate) use impl_singleton;
 
+/// Implement `Exhaust` for `$self` by iterating over the given array.
+/// The array must have no more than `u8::MAX - 1` (254) elements.
 macro_rules! impl_via_array {
     ($self:ty, $array:expr) => {
-        impl $crate::Exhaust for $self {
-            type Iter = ::core::array::IntoIter<Self, { $array.len() }>;
-            fn exhaust_factories() -> Self::Iter {
-                $array.into_iter()
+        // block to hide the non-uniquely named items
+        const _: () = {
+            impl $crate::Exhaust for $self {
+                type Iter = ExhaustIter;
+                fn exhaust_factories() -> Self::Iter {
+                    #![allow(clippy::cast_possible_truncation)]
+                    const {
+                        assert!(VALUES.len() < u8::MAX as usize);
+                        ExhaustIter {
+                            index_iter: 0..{ VALUES.len() as u8 },
+                        }
+                    }
+                }
+                $crate::patterns::factory_is_self!();
             }
-            $crate::patterns::factory_is_self!();
-        }
+
+            const VALUES: &[$self; $array.len()] = &$array;
+
+            // Opaque iterator struct for this particular `Exhaust` implementation.
+            // Public-in-private type as a substitute for associated type `impl Iterator`.
+            #[derive(Clone, Debug)] // TODO: custom Debug
+            pub struct ExhaustIter {
+                // Indices into `VALUES` to produce.
+                index_iter: ::core::ops::Range<u8>,
+            }
+
+            // Note: We could easily decide that the factory is a `u8` instead of doing
+            // `factory_is_self` style, but we want to offer `factory_is_self` since it
+            // is the maximally flexible option.
+
+            impl Iterator for ExhaustIter {
+                type Item = $self;
+                #[inline]
+                fn next(&mut self) -> Option<Self::Item> {
+                    match self.index_iter.next() {
+                        Some(index) => Some(VALUES[usize::from(index)]),
+                        None => None,
+                    }
+                }
+
+                #[inline]
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.index_iter.size_hint()
+                }
+            }
+            impl DoubleEndedIterator for ExhaustIter {
+                #[inline]
+                fn next_back(&mut self) -> Option<Self::Item> {
+                    match self.index_iter.next_back() {
+                        Some(index) => Some(VALUES[usize::from(index)]),
+                        None => None,
+                    }
+                }
+            }
+            impl ::core::iter::FusedIterator for ExhaustIter {}
+        };
     };
 }
 pub(crate) use impl_via_array;

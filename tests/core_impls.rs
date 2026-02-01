@@ -8,11 +8,13 @@ use helper::{check, check_double};
 #[test]
 fn impl_unit() {
     check_double(vec![()]);
+    assert_eq!(size_of_val(&<()>::exhaust()), 1);
 }
 
 #[test]
 fn impl_single_element_tuple() {
     check_double(vec![(false,), (true,)]);
+    assert_eq!(size_of_val(&<(bool,)>::exhaust()), 1);
 }
 
 #[test]
@@ -27,12 +29,15 @@ fn impl_nontrivial_tuple() {
         (true, true, false),
         (true, true, true),
     ]);
+    // Size is 3 inner iterators + 3 peeking states. (Would be nice to be smaller.)
+    assert_eq!(size_of_val(&<(bool, bool, bool)>::exhaust()), 6);
 }
 
 #[test]
 fn impl_phantom_data() {
     use core::marker::PhantomData;
     check_double::<PhantomData<bool>>(vec![PhantomData]);
+    assert_eq!(size_of_val(&<PhantomData<bool>>::exhaust()), 1);
 }
 
 /// [`core::convert::Infallible`] is not especially interesting in its role as an error type,
@@ -40,11 +45,13 @@ fn impl_phantom_data() {
 #[test]
 fn impl_infallible() {
     check_double(Vec::<core::convert::Infallible>::new());
+    assert_eq!(size_of_val(&core::convert::Infallible::exhaust()), 0);
 }
 
 #[test]
 fn impl_bool() {
     check_double(vec![false, true]);
+    assert_eq!(size_of_val(&<bool>::exhaust()), 1);
 }
 
 #[test]
@@ -142,14 +149,23 @@ fn impl_array_of_3() {
 }
 
 #[test]
+fn impl_ordering() {
+    use core::cmp::Ordering;
+    check(vec![Ordering::Less, Ordering::Equal, Ordering::Greater]);
+    assert_eq!(size_of_val(&Ordering::exhaust()), 2);
+}
+
+#[test]
 fn impl_option() {
     check(vec![None, Some(false), Some(true)]);
+    assert_eq!(size_of_val(&<Option<bool>>::exhaust()), 1);
 }
 
 #[test]
 fn impl_poll() {
     use core::task::Poll;
     check(vec![Poll::Pending, Poll::Ready(false), Poll::Ready(true)]);
+    assert_eq!(size_of_val(&<Poll<bool>>::exhaust()), 1);
 }
 
 #[test]
