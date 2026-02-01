@@ -163,9 +163,18 @@ mod sync {
 
     impl_via_array!(
         sync::mpsc::RecvTimeoutError,
-        [Self::Timeout, Self::Disconnected]
+        [
+            sync::mpsc::RecvTimeoutError::Timeout,
+            sync::mpsc::RecvTimeoutError::Disconnected
+        ]
     );
-    impl_via_array!(sync::mpsc::TryRecvError, [Self::Empty, Self::Disconnected]);
+    impl_via_array!(
+        sync::mpsc::TryRecvError,
+        [
+            sync::mpsc::TryRecvError::Empty,
+            sync::mpsc::TryRecvError::Disconnected
+        ]
+    );
     impl_singleton!([], sync::mpsc::RecvError, sync::mpsc::RecvError);
     impl<T: Exhaust> Exhaust for sync::mpsc::TrySendError<T> {
         delegate_factory_and_iter!(remote::TrySendError<T>);
