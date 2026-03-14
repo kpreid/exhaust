@@ -82,8 +82,7 @@ impl ExhaustContext {
         let mut path;
         if self.factory_is_self() {
             path = self.helpers();
-            path.segments
-                .push(parse_quote! { ExhaustWithFactoryEqSelf });
+            path.segments.push(parse_quote! { ExhaustAndFactoryish });
         } else {
             path = self.exhaust_crate_path.clone();
             path.segments.push(parse_quote! { Exhaust });

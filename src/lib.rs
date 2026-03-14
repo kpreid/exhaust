@@ -300,6 +300,8 @@ pub trait Exhaust: Sized {
 ///
 /// * The type is a `struct` or `enum` (not a `union`).
 /// * All fields implement [`Exhaust`].
+/// * All type parameters are used directly.
+///   (That is, `struct Foo<T>(T);` rather than `struct Foo<T: Trait>(T::Assoc);`.)
 /// * The type **does not have any invariants** other than the intrinsic one that its fields
 ///   are properly initialized.
 ///

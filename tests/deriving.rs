@@ -47,7 +47,7 @@ fn assert_factory_is_self<T: exhaust::Exhaust<Factory = T>>() {}
 /// Helper struct that implements `Exhaust`, *not* in the `factory_is_self` way, but meets the
 /// requirements to be a field of a `factory_is_self` type — in particular, it is `Clone`.
 /// This struct is not itself a test case.
-#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+#[derive(Clone, Copy, Debug, exhaust::Exhaust, PartialEq)]
 struct NotFis;
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -205,6 +205,16 @@ fn struct_generic_and_fis() {
         ]
     );
     assert_factory_is_self::<GenericFis<bool>>();
+
+    // A generic factory_is_self type can still be used with parameters that aren't factory_is_self.
+    std::assert_eq!(
+        c::<GenericFis<NotFis>>(),
+        [GenericFis {
+            not_fis: NotFis,
+            a: NotFis,
+            b: NotFis
+        }]
+    );
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -431,6 +441,9 @@ fn newtype_struct_fis() {
     struct NewtypeStructFis<T>(T);
 
     c::<NewtypeStructFis<bool>>();
+
+    // A generic factory_is_self type can still be used with parameters that aren't factory_is_self.
+    std::assert_eq!(c::<NewtypeStructFis<NotFis>>(), [NewtypeStructFis(NotFis)]);
 }
 
 mod module {
