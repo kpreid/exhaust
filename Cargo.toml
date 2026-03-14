@@ -3,7 +3,7 @@ members = [
     "exhaust-macros",
     "xtask",
 ]
-# Setting default-members to enclude `exhaust-macros` ensures we won't accidentally forget to
+# Setting default-members to include `exhaust-macros` ensures we won't accidentally forget to
 # `cargo publish` the macro package...
 default-members = [
     ".",

@@ -8,7 +8,7 @@ pub use {Clone, Default, None, Option, Some};
 
 /// Types which are valid as fields of `Exhaust<Factory = Self>` implementations.
 /// Such types must both implement [`Exhaust`] and also the traits required of a factory type,
-/// i.e. `Clone + fmt::Debug`
+/// i.e. `Clone + fmt::Debug`.
 ///
 /// This trait alias helps the derive macro be simpler and generate simpler code.
 #[doc(hidden)]

@@ -129,7 +129,6 @@ impl ExhaustContext {
 
     pub fn iterator_doc(&self) -> String {
         match &self.item_type {
-            // TODO: No tests to validate this doc link
             ConstructorSyntax::Braced(name) => format!(
                 "Iterator over all values of [`{name}`].\n\
                 \n\
