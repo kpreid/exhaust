@@ -12,6 +12,7 @@ include = ["*.rs", "README.md"]
 proc-macro = true
 
 [dependencies]
+# TODO: Remove itertools dependency when MSRV ≥ 1.85 and we can use FromIterator on tuples
 itertools = { workspace = true }
 proc-macro2 = "1.0.86"
 quote = "1.0.37"
