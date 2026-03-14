@@ -323,13 +323,9 @@ pub trait Exhaust: Sized {
 ///   Makes the `<Self as Exhaust>::Factory` associated type be `Self` instead of a newly
 ///   generated type. This allows the macro to generate less code, but requires that:
 ///
-///   * The type implements [`Clone`] and [`fmt::Debug`].
-///   * All of its fields *also* implement `Exhaust<Factory = Self>`.
-///     This is the case for all primitive types such as `bool` and `i32`, but is not generally
-///     guaranteed to be true for any other implementation.
-///
-///   We recommend that you use `factory_is_self` primarily for fieldless enums and types that
-///   contain them, that you fully control.
+///   * The type implements [`Clone`] and [`fmt::Debug`] (so that it is a valid factory type).
+///   * All of its fields implement [`Clone`] and [`fmt::Debug`]
+///     (so that they can be part of the iterator state).
 ///
 ///   ```
 ///   # use exhaust::Exhaust;

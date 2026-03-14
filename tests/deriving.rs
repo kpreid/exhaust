@@ -37,6 +37,12 @@ where
 
 fn assert_factory_is_self<T: exhaust::Exhaust<Factory = T>>() {}
 
+/// Helper struct that implements `Exhaust`, *not* in the `factory_is_self` way, but meets the
+/// requirements to be a field of a `factory_is_self` type — in particular, it is `Clone`.
+/// This struct is not itself a test case.
+#[derive(Clone, Debug, exhaust::Exhaust, PartialEq)]
+struct NotFis;
+
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
 struct UnitStruct;
 
@@ -120,15 +126,17 @@ fn struct_simple_fis() {
     struct SimpleStructFis {
         a: bool,
         b: bool,
+        not_fis: NotFis,
     }
 
+    #[cfg_attr(any(), rustfmt::skip)]
     std::assert_eq!(
         c::<SimpleStructFis>(),
         std::vec![
-            SimpleStructFis { a: false, b: false },
-            SimpleStructFis { a: false, b: true },
-            SimpleStructFis { a: true, b: false },
-            SimpleStructFis { a: true, b: true },
+            SimpleStructFis { not_fis: NotFis, a: false, b: false },
+            SimpleStructFis { not_fis: NotFis, a: false, b: true },
+            SimpleStructFis { not_fis: NotFis, a: true, b: false },
+            SimpleStructFis { not_fis: NotFis, a: true, b: true },
         ]
     );
     assert_factory_is_self::<SimpleStructFis>();
@@ -164,15 +172,17 @@ fn struct_generic_and_fis() {
     struct GenericFis<T: std::marker::Copy> {
         a: T,
         b: T,
+        not_fis: NotFis,
     }
 
+    #[cfg_attr(any(), rustfmt::skip)]
     std::assert_eq!(
         c::<GenericFis<bool>>(),
         std::vec![
-            GenericFis { a: false, b: false },
-            GenericFis { a: false, b: true },
-            GenericFis { a: true, b: false },
-            GenericFis { a: true, b: true },
+            GenericFis { not_fis: NotFis, a: false, b: false },
+            GenericFis { not_fis: NotFis, a: false, b: true },
+            GenericFis { not_fis: NotFis, a: true, b: false },
+            GenericFis { not_fis: NotFis, a: true, b: true },
         ]
     );
     assert_factory_is_self::<GenericFis<bool>>();
@@ -259,7 +269,7 @@ enum EnumWithFields {
 #[exhaust(factory_is_self)]
 enum EnumWithFieldsFis {
     Foo(bool, bool),
-    Bar(bool),
+    Bar(bool, NotFis),
 }
 
 #[test]
@@ -272,7 +282,7 @@ fn enum_fields() {
             EnumWithFields::Foo(true, false),
             EnumWithFields::Foo(true, true),
             EnumWithFields::Bar(false),
-            EnumWithFields::Bar(true)
+            EnumWithFields::Bar(true),
         ]
     );
 }
@@ -285,8 +295,8 @@ fn enum_fields_fis() {
             EnumWithFieldsFis::Foo(false, true),
             EnumWithFieldsFis::Foo(true, false),
             EnumWithFieldsFis::Foo(true, true),
-            EnumWithFieldsFis::Bar(false),
-            EnumWithFieldsFis::Bar(true)
+            EnumWithFieldsFis::Bar(false, NotFis),
+            EnumWithFieldsFis::Bar(true, NotFis),
         ]
     );
     assert_factory_is_self::<EnumWithFieldsFis>();
