@@ -13,7 +13,10 @@
 
 ### Changed
 
-* `derive(Exhaust)` generates smaller iterators for structs or enum variants with exactly one field.
+* `derive(Exhaust)` iterators now implement `size_hint()` exactly in some cases;
+  most notably, fieldless enums. (They still do not implement `ExactSizeIterator`.)
+* `derive(Exhaust)` iterators now take up less memory when a struct, or a variant of an enum,
+  has exactly one field.
 
 ## 0.2.4 (2025-08-25)
 

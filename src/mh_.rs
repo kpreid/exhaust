@@ -3,6 +3,7 @@
 
 pub use core::fmt;
 pub use core::iter::{FusedIterator, Iterator, Peekable};
+pub use core::primitive::usize;
 pub use {Clone, Default, None, Option, Some};
 
 /// Convenience trait-alias for helping the derive macro be simpler and generate simpler code.
@@ -22,6 +23,9 @@ pub fn default<T: Default>() -> T {
 #[must_use]
 pub fn next<I: Iterator>(iterator: &mut I) -> Option<I::Item> {
     iterator.next()
+}
+pub fn size_hint<I: Iterator>(iterator: &I) -> (usize, Option<usize>) {
+    iterator.size_hint()
 }
 pub fn clone<T: Clone>(original: &T) -> T {
     original.clone()

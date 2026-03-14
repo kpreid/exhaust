@@ -10,6 +10,10 @@ mod helper;
 // Don’t glob import the std prelude, so that we check the macro doesn't depend on it.
 use std::prelude::rust_2021 as p;
 
+fn ex<T: exhaust::Exhaust>() -> exhaust::Iter<T> {
+    T::exhaust()
+}
+
 fn c<T: std::fmt::Debug + exhaust::Exhaust>() -> std::vec::Vec<T>
 where
     <T as exhaust::Exhaust>::Iter: std::fmt::Debug,
@@ -32,6 +36,9 @@ where
 
     helper::assert_size_hint_valid(size_hint, result.len());
 
+    // Check the final size hint is not nonzero
+    helper::assert_size_hint_valid(p::Iterator::size_hint(&iterator), 0);
+
     result
 }
 
@@ -53,12 +60,24 @@ struct UnitStructFis;
 #[test]
 fn struct_unit() {
     std::assert_eq!(c::<UnitStruct>(), std::vec![UnitStruct]);
+
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<UnitStruct>()),
+        (1, p::Some(1)),
+        "size hint should be exact"
+    );
 }
 #[test]
 fn struct_unit_fis() {
     std::assert_eq!(c::<UnitStructFis>(), std::vec![UnitStructFis]);
 
     assert_factory_is_self::<UnitStructFis>();
+
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<UnitStructFis>()),
+        (1, p::Some(1)),
+        "size hint should be exact"
+    );
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -203,7 +222,12 @@ fn struct_uninhabited_generic() {
 
 #[test]
 fn struct_uninhabited_nongeneric() {
-    std::assert_eq!(c::<UninhabitedStruct>(), std::vec![])
+    std::assert_eq!(c::<UninhabitedStruct>(), std::vec![]);
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<UninhabitedStruct>()),
+        (0, p::Some(0)),
+        "size hint should be exact"
+    );
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -212,6 +236,12 @@ enum EmptyEnum {}
 #[test]
 fn enum_empty() {
     std::assert_eq!(c::<EmptyEnum>(), std::vec![]);
+
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<EmptyEnum>()),
+        (0, p::Some(0)),
+        "size hint should be exact"
+    );
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -222,6 +252,11 @@ enum OneValueEnum {
 #[test]
 fn enum_one_value() {
     std::assert_eq!(c::<OneValueEnum>(), std::vec![OneValueEnum::Foo]);
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<OneValueEnum>()),
+        (1, p::Some(1)),
+        "size hint should be exact"
+    );
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -236,6 +271,11 @@ fn enum_fieldless_multi() {
     std::assert_eq!(
         c::<FieldlessEnum>(),
         std::vec![FieldlessEnum::Foo, FieldlessEnum::Bar, FieldlessEnum::Baz]
+    );
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<FieldlessEnum>()),
+        (3, p::Some(3)),
+        "size hint should be exact"
     );
 }
 
@@ -320,6 +360,10 @@ fn enum_generic() {
             EnumWithGeneric::After,
         ]
     );
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<EnumWithGeneric<'static, bool>>()),
+        (1, p::None),
+    );
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -336,6 +380,10 @@ fn enum_with_uninhabited_nongeneric() {
         c::<EnumWithUninhabited>(),
         [EnumWithUninhabited::Before, EnumWithUninhabited::After]
     );
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<EnumWithUninhabited>()),
+        (1, p::None),
+    );
 }
 #[test]
 fn enum_with_uninhabited_generic() {
@@ -345,6 +393,10 @@ fn enum_with_uninhabited_generic() {
             EnumWithGeneric::Before(std::marker::PhantomData),
             EnumWithGeneric::After,
         ]
+    );
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<EnumWithGeneric<std::convert::Infallible>>()),
+        (1, p::None),
     );
 }
 
@@ -358,6 +410,12 @@ fn newtype_struct() {
     c::<NewtypeStruct<bool>>();
     // using FieldlessEnum as a non-factory_is_self implementation to use in our generic newtype
     c::<NewtypeStruct<FieldlessEnum>>();
+
+    std::assert_eq!(
+        p::Iterator::size_hint(&ex::<NewtypeStruct<bool>>()),
+        (2, p::Some(2)),
+        "size hint should be exact"
+    );
 
     // Check that the newtype's iterator is not bigger (because it is itself a newtype).
     // (This is not technically guaranteed by Rust unless we add a `repr(transparent)`, though.)
