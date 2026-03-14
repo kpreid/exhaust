@@ -4,14 +4,14 @@
 
 ### Added
 
-* The derive macro now supports a configuration attribute `#[exhaust(factory_is_self)]`,
+* `#[derive(Exhaust)]` now supports a configuration attribute `#[exhaust(factory_is_self)]`,
   which disables generation of a separate `Exhaust::Factory` type.
   This can be used to simplify the macro-generated code to improve build performance,
   but requires the type and its fields to implement `Clone` and `Debug`,
   similar to what was required in `exhaust` v0.1;
   see the derive macro’s documentation for details.
 
-### Changed
+### Performance improvements
 
 * `derive(Exhaust)` iterators now implement `size_hint()` exactly in some cases;
   most notably, fieldless enums. (They still do not implement `ExactSizeIterator`.)
@@ -24,17 +24,17 @@
 
 * `derive(Exhaust)` now supports types with const generic parameters.
 
-### Changed
+### Fixed
+
+* `derive(Exhaust)` will no longer produce spurious warnings when the type of a field is uninhabited.
+
+### Performance improvements
 
 * `derive(Exhaust)` generates simpler code to improve build performance (and readability).
   * Replaced use of `Option::unwrap()` with pattern matching.
   * Replaced recursion in enum iterator `next()` with iteration.
   * Factories for unit structs no longer include an inner type.
   * Removed superfluous `&& true`s.
-
-### Fixed
-
-* `derive(Exhaust)` will no longer produce spurious warnings when the type of a field is uninhabited.
 
 ## 0.2.3 (2025-08-24)
 
