@@ -1,10 +1,11 @@
 [package]
 name = "exhaust-macros"
 version = "0.3.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 description = "Proc-macro support for the 'exhaust' library. Do not use this library directly."
-repository = "https://github.com/kpreid/exhaust/"
-license = "MIT OR Apache-2.0"
+repository.workspace = true
+license.workspace = true
 
 [lib]
 proc-macro = true

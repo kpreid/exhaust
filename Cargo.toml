@@ -10,6 +10,12 @@ default-members = [
     "exhaust-macros",
 ]
 
+[workspace.package]
+edition = "2021"
+rust-version = "1.80.0"
+repository = "https://github.com/kpreid/exhaust/"
+license = "MIT OR Apache-2.0"
+
 [package]
 name = "exhaust"
 # When bumping this don't forget the relationship with the macro package!
@@ -19,11 +25,11 @@ name = "exhaust"
 # do decide to release `exhaust` v0.3, we will be able to keep the major version of `exhaust-macros`
 # the same — or just switch to v0.4 if that feels cleaner.
 version = "0.2.5"
-edition = "2021"
-rust-version = "1.80.0"
+edition.workspace = true
+rust-version.workspace = true
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
-repository = "https://github.com/kpreid/exhaust/"
-license = "MIT OR Apache-2.0"
+repository.workspace = true
+license.workspace = true
 categories = ["algorithms", "rust-patterns", "no-std"]
 keywords = ["exhaustive"]
 
