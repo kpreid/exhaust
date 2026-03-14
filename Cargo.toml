@@ -32,6 +32,7 @@ repository.workspace = true
 license.workspace = true
 categories = ["algorithms", "rust-patterns", "no-std"]
 keywords = ["exhaustive"]
+include = ["*.rs", "README.md", "CHANGELOG.md", "LICENSE*"]
 
 [features]
 default = ["std"]

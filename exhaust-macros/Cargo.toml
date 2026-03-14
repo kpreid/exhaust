@@ -6,6 +6,7 @@ rust-version.workspace = true
 description = "Proc-macro support for the 'exhaust' library. Do not use this library directly."
 repository.workspace = true
 license.workspace = true
+include = ["*.rs", "README.md"]
 
 [lib]
 proc-macro = true
