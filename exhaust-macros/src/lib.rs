@@ -1,3 +1,5 @@
+//! Proc-macro support for the `exhaust` library. Do not use this library directly.
+
 use proc_macro::TokenStream;
 use std::iter;
 
