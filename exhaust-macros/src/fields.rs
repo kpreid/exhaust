@@ -19,6 +19,10 @@ pub(crate) struct ExhaustFields {
     pub field_pats: TokenStream2,
     /// Code to implement advancing the iterator. [`Self::field_pats`] should be in scope.
     pub advance: TokenStream2,
+    /// Code to implement `Iterator::size_hint()`,
+    /// or `None` if this is infeasible.
+    /// [`Self::field_pats`] should be in scope.
+    pub iter_size_hint: Option<TokenStream2>,
 }
 
 /// Given a set of fields to exhaust, generate fields and code for the iterator to
@@ -137,6 +141,10 @@ pub(crate) fn exhaustion_of_fields(
                         #helpers::None => #helpers::None,
                     }
                 },
+                // If we have exactly one field, then our size hint is equal to that field’s.
+                iter_size_hint: Some(quote! {
+                    #helpers::size_hint(#field_iter_var)
+                }),
             };
         }
 
@@ -322,5 +330,9 @@ pub(crate) fn exhaustion_of_fields(
             #( #iter_field_names , )*
         },
         advance,
+        // No size hint because in any situation including carrying, we need to be able to ask
+        // what the size hint of a *newly created* iterator will be, which will require expanding
+        // the `Exhaust` trait itself.
+        iter_size_hint: None,
     }
 }

@@ -152,11 +152,14 @@ impl ExhaustContext {
 
     /// Generate the parts of the trait implementations for the iterator and factory
     /// that do not depend on whether the type being exhausted is an enum or struct.
+    ///
+    /// If `iterator_size_hint_body` is `None`, a `size_hint()` method is not generated.
     pub fn impl_iterator_and_factory_traits(
         &self,
         iterator_next_body: TokenStream2,
         iterator_default_body: TokenStream2,
         iterator_clone_body: TokenStream2,
+        iterator_size_hint_body: Option<TokenStream2>,
     ) -> TokenStream2 {
         let exhaust_crate_path = &self.exhaust_crate_path;
         let helpers = self.helpers();
@@ -187,6 +190,17 @@ impl ExhaustContext {
             },
         };
 
+        let iterator_size_hint_decl = if let Some(iterator_size_hint_body) = iterator_size_hint_body
+        {
+            quote! {
+                fn size_hint(&self) -> (usize, #helpers::Option<usize>) {
+                    #iterator_size_hint_body
+                }
+            }
+        } else {
+            TokenStream2::new()
+        };
+
         quote! {
             impl #impl_generics #helpers::Iterator for #iterator_type_name #ty_generics
             where #augmented_where_predicates {
@@ -196,6 +210,7 @@ impl ExhaustContext {
                     #![allow(unreachable_code)] // an iterator or factory might be uninhabited
                     #iterator_next_body
                 }
+                #iterator_size_hint_decl
             }
 
             impl #impl_generics #helpers::FusedIterator for #iterator_type_name #ty_generics

@@ -174,6 +174,7 @@ fn derive_exhaust_for_struct(
             cloners,
             field_pats,
             advance,
+            iter_size_hint,
         },
     ) = if s.fields.is_empty() {
         // If there are no fields, then
@@ -200,6 +201,13 @@ fn derive_exhaust_for_struct(
                     #helpers::Some(#factory_ctor_expr)
                 }
             },
+            iter_size_hint: Some(quote! {
+                if *done {
+                    const { (0, #helpers::Some(0)) }
+                } else {
+                    const { (1, #helpers::Some(1)) }
+                }
+            }),
         };
 
         let output_type = ctx.item_type.path()?;
@@ -318,6 +326,12 @@ fn derive_exhaust_for_struct(
             let Self { #field_pats } = self;
             Self { #cloners }
         },
+        iter_size_hint.map(|size_hint_body| {
+            quote! {
+                let Self { #field_pats } = self;
+                #size_hint_body
+            }
+        }),
     );
 
     // Struct that is exposed as the `<Self as Exhaust>::Iter` type.
@@ -452,6 +466,7 @@ fn derive_exhaust_for_enum(
                 cloners: state_fields_clone,
                 field_pats,
                 advance,
+                iter_size_hint: _, // TODO: propagate size hint if remainder is fieldless
             } = if target_variant.fields.is_empty() {
                 // TODO: don't even construct this dummy value (needs refactoring)
                 fields::ExhaustFields {
@@ -463,6 +478,7 @@ fn derive_exhaust_for_enum(
                     advance: quote! {
                         compile_error!("can't happen: fieldless ExhaustFields not used")
                     },
+                    iter_size_hint: None,
                 }
             } else {
                 fields::exhaustion_of_fields(
@@ -556,6 +572,42 @@ fn derive_exhaust_for_enum(
         },
     );
 
+    let iter_size_hint_body = {
+        let mut size_hint_arms: Vec<TokenStream2> =
+            Vec::with_capacity(state_enum_progress_variants.len() + 1);
+        let mut remaining_count_so_far: usize = 0;
+        for (original_enum_variant, progress_variant_name) in
+            izip!(&e.variants, &state_enum_progress_variants).rev()
+        {
+            if original_enum_variant.fields.is_empty() {
+                // If the variant is fieldless, we can predict that it has exactly 1 value to exhaust.
+                remaining_count_so_far += 1;
+                size_hint_arms.push(quote! {
+                    #iter_state_enum_type :: #progress_variant_name =>
+                        (#remaining_count_so_far, #helpers::Some(#remaining_count_so_far))
+                });
+            } else {
+                // If the variant has fields, prediction is difficult.
+                // TODO: We should use at least the size hint from this variant's ExhaustFields
+
+                size_hint_arms.push(quote! {
+                    // Note: We can't even increment by 1 because a field might be uninhabited
+                    // (have zero values).
+                    _ => (#remaining_count_so_far, #helpers::None)
+                });
+                // Stop because any further variants would be wrong
+                break;
+            }
+        }
+
+        Some(quote! {
+            match &self.0 {
+                #iter_state_enum_type :: #done_variant => (0, #helpers::Some(0)),
+                #(#size_hint_arms),*
+            }
+        })
+    };
+
     let impls = ctx.impl_iterator_and_factory_traits(
         quote! {
             'variants: loop {
@@ -573,6 +625,7 @@ fn derive_exhaust_for_enum(
                 #( #state_enum_variant_cloners , )*
             })
         },
+        iter_size_hint_body,
     );
 
     let factory_struct_decl_and_impls = match &ctx.factory_type {
@@ -729,6 +782,7 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
         cloners,
         field_pats,
         advance,
+        iter_size_hint,
     } = exhaustion_of_fields(&ctx, &synthetic_fields, None, &ConstructorSyntax::Tuple);
     assert!(
         !state_field_decls.is_empty(),
@@ -748,6 +802,12 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
             let Self { #field_pats } = self;
             Self { #cloners }
         },
+        iter_size_hint.map(|size_hint_body| {
+            quote! {
+                let Self { #field_pats } = self;
+                #size_hint_body
+            }
+        }),
     );
 
     let iterator_doc = ctx.iterator_doc();
