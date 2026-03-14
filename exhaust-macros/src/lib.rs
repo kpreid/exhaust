@@ -284,7 +284,8 @@ fn derive_exhaust_for_struct(
         (
             factory_state_struct_decl,
             factory_state_struct_type.to_token_stream(),
-            // TODO: replace this 1-arm match with a let?
+            // TODO: replace 1-arm match with a let (but we will need to split up the clone arm
+            // into more than one TokenStream)
             quote! { match self.0 { #factory_state_struct_clone_arm } },
             factory_to_self_transform_arm,
             fields,
