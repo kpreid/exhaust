@@ -6,14 +6,15 @@ pub use core::iter::{FusedIterator, Iterator, Peekable};
 pub use core::primitive::usize;
 pub use {Clone, Default, None, Option, Some};
 
-/// Convenience trait-alias for helping the derive macro be simpler and generate simpler code.
+/// Types which are valid as fields of `Exhaust<Factory = Self>` implementations.
+/// Such types must both implement [`Exhaust`] and also the traits required of a factory type,
+/// i.e. `Clone + fmt::Debug`
 ///
-/// It includes `Clone + fmt::Debug` because those are the bounds required of factories,
-/// and including them as supertrait bounds here allows avoiding reiterating them.
+/// This trait alias helps the derive macro be simpler and generate simpler code.
 #[doc(hidden)]
-pub trait ExhaustWithFactoryEqSelf: crate::Exhaust<Factory = Self> + Clone + fmt::Debug {}
+pub trait ExhaustAndFactoryish: crate::Exhaust + Clone + fmt::Debug {}
 
-impl<T> ExhaustWithFactoryEqSelf for T where T: crate::Exhaust<Factory = T> + Clone + fmt::Debug {}
+impl<T> ExhaustAndFactoryish for T where T: crate::Exhaust + Clone + fmt::Debug {}
 
 // Trait methods cannot be `use`d, so define alias functions for them
 #[must_use]
