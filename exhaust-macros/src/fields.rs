@@ -197,7 +197,8 @@ pub(crate) fn exhaustion_of_fields(
                     syn::parse_quote! { #helpers::pv_iter::<#field_type> },
                 )
             } else {
-                // TODO: The first field’s iterator doesn't need to be peekable.
+                // TODO: In principle, the last field’s iterator doesn't need to be peekable.
+                // However, next() will need to be redesigned to support that.
                 (
                     syn::parse_quote! { #helpers::Pf<#field_type> },
                     syn::parse_quote! { #helpers::pf_iter::<#field_type> },
