@@ -2,7 +2,7 @@
 //! name hygiene and for concise output.
 
 pub use core::fmt;
-pub use core::iter::{FusedIterator, Iterator};
+pub use core::iter::{FusedIterator, Iterator, Peekable};
 pub use {Clone, Default, None, Option, Some};
 
 /// Convenience trait-alias for helping the derive macro be simpler and generate simpler code.
@@ -26,6 +26,21 @@ pub fn next<I: Iterator>(iterator: &mut I) -> Option<I::Item> {
 pub fn clone<T: Clone>(original: &T) -> T {
     original.clone()
 }
-pub fn peek<I: Iterator>(iter: &mut core::iter::Peekable<I>) -> Option<&I::Item> {
+pub fn peek<I: Iterator>(iter: &mut Peekable<I>) -> Option<&I::Item> {
     iter.peek()
+}
+
+/// Peekable iterator over factories of `T`.
+pub type Pf<T> = Peekable<<T as crate::Exhaust>::Iter>;
+/// Peekable iterator over values of `T`.
+pub type Pv<T> = Peekable<crate::Iter<T>>;
+
+/// Constructs [`Pf`].
+pub fn pf_iter<T: crate::Exhaust>() -> Pf<T> {
+    T::exhaust_factories().peekable()
+}
+
+/// Constructs [`Pv`].
+pub fn pv_iter<T: crate::Exhaust>() -> Pv<T> {
+    crate::Iter::<T>::default().peekable()
 }

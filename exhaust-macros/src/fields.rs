@@ -95,13 +95,37 @@ pub(crate) fn exhaustion_of_fields(
                 factory_state_expr
             };
 
+            let (type_of_field_iterator, init_of_field_iterator): (syn::Type, syn::Expr) = if ctx
+                .factory_is_self()
+            {
+                // If factory_is_self, then the iterator we store is an iterator over the
+                // values of the field type instead of the factories of the field type.
+                (
+                    syn::parse_quote! { #crate_path::Iter<#field_type> },
+                    syn::parse_quote! { #helpers::default() },
+                )
+            } else {
+                (
+                    syn::parse_quote! { <#field_type as #crate_path::Exhaust>::Iter },
+                    syn::parse_quote! { <#field_type as #crate_path::Exhaust>::exhaust_factories() },
+                )
+            };
+
             return ExhaustFields {
-                state_field_decls: syn::Fields::Unnamed(
-                    syn::parse_quote! { (<#field_type as #crate_path::Exhaust>::Iter) },
-                ),
+                state_field_decls: syn::Fields::Unnamed(syn::FieldsUnnamed {
+                    paren_token: Default::default(),
+                    unnamed: Punctuated::from_iter([syn::Field {
+                        attrs: Vec::new(),
+                        vis: syn::Visibility::Inherited,
+                        mutability: syn::FieldMutability::None,
+                        ident: None,
+                        colon_token: None,
+                        ty: type_of_field_iterator,
+                    }]),
+                }),
                 factory_field_decls,
                 initializers: quote! {
-                    0: <#field_type as #crate_path::Exhaust>::exhaust_factories()
+                    0: #init_of_field_iterator
                 },
                 cloners: quote! {
                     0: ::core::clone::Clone::clone(#field_iter_var)
@@ -116,22 +140,22 @@ pub(crate) fn exhaustion_of_fields(
             };
         }
 
-        2.. => { /* fall rthrough to general case */ }
+        2.. => { /* fall through to general case */ }
     }
 
     #[allow(clippy::type_complexity)]
     let (
         iterator_state_fields,
         iterator_fields_init,
+        field_iterator_init_exprs,
         iterator_fields_clone,
         iter_field_names,
         target_field_names,
-        field_types,
         factory_value_vars,
     ): (
         Punctuated<syn::Field, syn::Token![,]>,
         Vec<TokenStream2>,
-        Vec<TokenStream2>,
+        Vec<syn::Expr>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
@@ -164,6 +188,22 @@ pub(crate) fn exhaustion_of_fields(
 
         let field_type = &field.ty;
 
+        let (type_of_field_iterator, field_iter_init_function): (syn::Type, syn::Expr) =
+            if ctx.factory_is_self() {
+                // If factory_is_self, then the iterators we store are iterators over the
+                // values of the field type instead of the factories of the field type.
+                (
+                    syn::parse_quote! { #helpers::Pv<#field_type> },
+                    syn::parse_quote! { #helpers::pv_iter::<#field_type> },
+                )
+            } else {
+                // TODO: The first field’s iterator doesn't need to be peekable.
+                (
+                    syn::parse_quote! { #helpers::Pf<#field_type> },
+                    syn::parse_quote! { #helpers::pf_iter::<#field_type> },
+                )
+            };
+
         (
             syn::Field {
                 attrs: Vec::new(),
@@ -171,17 +211,17 @@ pub(crate) fn exhaustion_of_fields(
                 mutability: syn::FieldMutability::None,
                 ident: Some(iter_field_name.clone()),
                 colon_token: None,
-                ty: syn::parse_quote! { #crate_path::iteration::Pei<#field_type> },
+                ty: type_of_field_iterator,
             },
             quote! {
-                #iter_field_name : #crate_path::iteration::peekable_exhaust::<#field_type>()
+                #iter_field_name : #field_iter_init_function()
             },
+            field_iter_init_function,
             quote! {
                 #iter_field_name : #helpers::clone(#iter_field_name)
             },
             iter_field_name.to_token_stream(),
             target_field_name,
-            field_type.clone().to_token_stream(),
             factory_var_name,
         )
     }));
@@ -224,17 +264,11 @@ pub(crate) fn exhaustion_of_fields(
             iter_field_names
                 .iter()
                 .skip(1)
-                .zip(field_types.iter().skip(1)),
+                .zip(field_iterator_init_exprs.iter().skip(1)),
         )
         .rev()
-        .map(|(high, (low, low_field_type))| {
-            quote! {
-                #crate_path::iteration::carry(
-                    #high,
-                    #low,
-                    #crate_path::iteration::peekable_exhaust::<#low_field_type>
-                )
-            }
+        .map(|(high, (low, low_init_function))| {
+            quote! { #crate_path::iteration::carry(#high, #low, #low_init_function) }
         })
         // && short circuiting gives us the behavior we want conveniently, whereas
         // the nearest alternative would be to define a separate function.
