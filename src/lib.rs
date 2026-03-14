@@ -352,7 +352,7 @@ pub trait Exhaust: Sized {
 ///   It has no public fields.
 ///   It implements [`Iterator`], [`FusedIterator`], [`Clone`], and [`fmt::Debug`],
 ///   but not [`DoubleEndedIterator`] or [`ExactSizeIterator`].
-///   It does not currently override any of the optional iterator methods such as
+///   It does not currently override any of the optional iterator methods except for
 ///   [`Iterator::size_hint()`].
 ///   It is unnameable except through the associated type, `<Self as Exhaust>::Iter`.
 ///
