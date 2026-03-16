@@ -31,20 +31,11 @@ pub(crate) use delegate_factory_and_iter;
 
 /// Implementation for types with exactly one value.
 macro_rules! impl_singleton {
-    // if Default is implemented
+    // For use if Default is implemented
     ([$($generics:tt)*], $self:ty) => {
-        impl<$($generics)*> $crate::Exhaust for $self {
-            type Iter = ::core::iter::Once<()>;
-            type Factory = ();
-            fn exhaust_factories() -> Self::Iter {
-                ::core::iter::once(())
-            }
-            fn from_factory((): Self::Factory) -> Self {
-                ::core::default::Default::default()
-            }
-        }
+        $crate::patterns::impl_singleton!([$($generics)*], $self, ::core::default::Default::default());
     };
-    // if Default is not implemented
+    // For use if Default is not implemented
     ([$($generics:tt)*], $self:ty, $ctor:expr) => {
         impl<$($generics)*> $crate::Exhaust for $self {
             type Iter = ::core::iter::Once<()>;
@@ -56,6 +47,20 @@ macro_rules! impl_singleton {
                 $ctor
             }
         }
+
+        impl<$($generics)*> $crate::Indexable for $self {
+            const VALUE_COUNT: usize = 1;
+
+            fn to_index(value: &Self) -> usize {
+                let _ = value;
+                0
+            }
+
+            fn from_index(index: usize) -> Self {
+                assert!(index == 0);
+                $ctor
+            }
+        }
     };
 }
 pub(crate) use impl_singleton;
@@ -63,7 +68,7 @@ pub(crate) use impl_singleton;
 /// Implement `Exhaust` for `$self` by iterating over the given array.
 /// The array must have no more than `u8::MAX - 1` (254) elements.
 macro_rules! impl_via_array {
-    ($self:ty, $array:expr) => {
+    ($self:ty, [$($item:path),* $(,)?]) => {
         // block to hide the non-uniquely named items
         const _: () = {
             impl $crate::Exhaust for $self {
@@ -80,7 +85,19 @@ macro_rules! impl_via_array {
                 $crate::patterns::factory_is_self!();
             }
 
-            const VALUES: &[$self; $array.len()] = &$array;
+            impl $crate::Indexable for $self {
+                const VALUE_COUNT: usize = VALUES.len();
+
+                fn to_index(value: &Self) -> usize {
+                    $crate::patterns::match_to_index!(value ; $($item),*)
+                }
+
+                fn from_index(index: usize) -> Self {
+                    VALUES[index]
+                }
+            }
+
+            const VALUES: &[$self; [$($item),*].len()] = &[$($item),*];
 
             // Opaque iterator struct for this particular `Exhaust` implementation.
             // Public-in-private type as a substitute for associated type `impl Iterator`.
@@ -124,12 +141,47 @@ macro_rules! impl_via_array {
 }
 pub(crate) use impl_via_array;
 
+// Helper for impl_via_array
+macro_rules! match_to_index {
+    ($var:ident ; $p0:path, $p1:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path, $p3:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+            $p3 => 3,
+        }
+    };
+    ($var:ident ; $p0:path, $p1:path, $p2:path, $p3:path, $p4:path) => {
+        match $var {
+            $p0 => 0,
+            $p1 => 1,
+            $p2 => 2,
+            $p3 => 3,
+            $p4 => 4,
+        }
+    };
+}
+pub(crate) use match_to_index;
+
 macro_rules! impl_via_range {
     ($self:ty, $start:expr, $end:expr) => {
         impl $crate::Exhaust for $self {
             type Iter = ::core::ops::RangeInclusive<$self>;
             fn exhaust_factories() -> Self::Iter {
-                (($start)..=($end))
+                $start..=$end
             }
             $crate::patterns::factory_is_self!();
         }
@@ -161,3 +213,25 @@ macro_rules! impl_newtype_generic {
     };
 }
 pub(crate) use impl_newtype_generic;
+
+macro_rules! impl_newtype_generic_indexable {
+    ($tvar:ident : [ $( $bounds:tt )* ] , $container:ty, $wrap_fn:expr, $unwrap_ref_fn:expr) => {
+        $crate::patterns::impl_newtype_generic!($tvar : [ $( $bounds )* ] , $container, $wrap_fn);
+
+        impl<$tvar: $crate::Indexable> $crate::Indexable for $container
+        where
+            $tvar: $( $bounds )*
+        {
+            const VALUE_COUNT: usize = <$tvar as $crate::Indexable>::VALUE_COUNT;
+
+            fn to_index(value: &Self) -> usize {
+                <$tvar as $crate::Indexable>::to_index($unwrap_ref_fn(value))
+            }
+
+            fn from_index(index: usize) -> Self {
+                $wrap_fn(<$tvar as $crate::Indexable>::from_index(index))
+            }
+        }
+    };
+}
+pub(crate) use impl_newtype_generic_indexable;

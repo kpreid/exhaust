@@ -1,13 +1,14 @@
 use core::{fmt, num, ops};
 
-use exhaust::Exhaust;
+use exhaust::{Exhaust, Indexable};
 
 mod helper;
-use helper::{check, check_double};
+use helper::{check, check_double, check_indexable};
 
 #[test]
 fn impl_unit() {
     check_double(vec![()]);
+    check_indexable::<()>();
     assert_eq!(size_of_val(&<()>::exhaust()), 1);
 }
 
@@ -37,6 +38,7 @@ fn impl_nontrivial_tuple() {
 fn impl_phantom_data() {
     use core::marker::PhantomData;
     check_double::<PhantomData<bool>>(vec![PhantomData]);
+    check_indexable::<PhantomData<bool>>();
     assert_eq!(size_of_val(&<PhantomData<bool>>::exhaust()), 1);
 }
 
@@ -45,13 +47,27 @@ fn impl_phantom_data() {
 #[test]
 fn impl_infallible() {
     check_double(Vec::<core::convert::Infallible>::new());
+    check_indexable::<core::convert::Infallible>();
     assert_eq!(size_of_val(&core::convert::Infallible::exhaust()), 0);
 }
 
 #[test]
 fn impl_bool() {
     check_double(vec![false, true]);
+    check_indexable::<bool>();
     assert_eq!(size_of_val(&<bool>::exhaust()), 1);
+}
+
+#[test]
+fn impl_i8() {
+    check_double((i8::MIN..=i8::MAX).collect());
+    check_indexable::<i8>();
+}
+
+#[test]
+fn impl_u8() {
+    check_double((u8::MIN..=u8::MAX).collect());
+    check_indexable::<u8>();
 }
 
 #[test]
@@ -107,21 +123,25 @@ fn impl_nonzero_signed() {
 #[test]
 fn impl_array_of_unit_type() {
     check(vec![[(), (), (), ()]]);
+    check_indexable::<[(); 4]>();
 }
 
 #[test]
 fn impl_array_of_uninhabited_type() {
     check(Vec::<[core::convert::Infallible; 4]>::new());
+    check_indexable::<[core::convert::Infallible; 4]>();
 }
 
 #[test]
 fn impl_array_of_0() {
     check::<[bool; 0]>(vec![[]]);
+    check_indexable::<[bool; 0]>();
 }
 
 #[test]
 fn impl_array_of_1() {
     check::<[bool; 1]>(vec![[false], [true]]);
+    check_indexable::<[bool; 1]>();
 }
 
 #[test]
@@ -132,6 +152,16 @@ fn impl_array_of_2() {
         [true, false],
         [true, true],
     ]);
+    check_indexable::<[bool; 2]>();
+}
+
+#[test]
+fn array_indexable_near_usize_max() {
+    const N: usize = size_of::<usize>() - 1;
+    assert_eq!(
+        <[u8; N]>::VALUE_COUNT,
+        256usize.pow(u32::try_from(N).unwrap())
+    );
 }
 
 #[test]
@@ -146,6 +176,7 @@ fn impl_array_of_3() {
         [true, true, false],
         [true, true, true],
     ]);
+    check_indexable::<[bool; 3]>();
 }
 
 #[test]
@@ -180,6 +211,7 @@ mod impl_cell {
     #[test]
     fn impl_cell() {
         check(vec![Cell::new(false), Cell::new(true)]);
+        check_indexable::<Cell<bool>>();
     }
 
     #[test]
@@ -240,6 +272,7 @@ mod impl_fmt {
     #[test]
     fn impl_error() {
         check_double(vec![fmt::Error]);
+        check_indexable::<fmt::Error>();
     }
 }
 
