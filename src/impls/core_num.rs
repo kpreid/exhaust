@@ -51,6 +51,19 @@ impl<T: Exhaust, N> Iterator for ExhaustNonZero<T, N> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // This is the size hint from `FilterMap`, which is pessimistic (the lower bound
+        // will always be 0).
+        let (mut lower, upper) = self.0.size_hint();
+
+        // Fix it using our knowledge that we are filtering out only one item.
+        if let Some(upper) = upper {
+            lower = upper.saturating_sub(1);
+        }
+
+        (lower, upper)
+    }
 }
 impl<T: Exhaust, N> iter::FusedIterator for ExhaustNonZero<T, N> {}
 
