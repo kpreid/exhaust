@@ -119,23 +119,22 @@ where
     type Item = O;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // This must loop because each outer iterator item could produce an inner iterator with
+        // any number of items, including zero.
         loop {
-            match self.inner {
-                Some((ref i_item, ref mut j_iter)) => {
-                    if let Some(j_item) = j_iter.next() {
-                        return Some((self.output_fn)(i_item.clone(), j_item));
-                    }
-                    // If no items, try the outer iter.
-                    self.inner = None;
+            // Try to produce an item using the current inner iterator.
+            if let Some((ref i_item, ref mut j_iter)) = self.inner {
+                if let Some(j_item) = j_iter.next() {
+                    return Some((self.output_fn)(i_item.clone(), j_item));
                 }
-                None => match self.outer_iterator.next() {
-                    Some(i_item) => {
-                        let j_iter = (self.iter_fn)(&i_item);
-                        self.inner = Some((i_item, j_iter));
-                    }
-                    None => return None,
-                },
+                // If no items, drop this inner iter and try the outer iter.
+                self.inner = None;
             }
+
+            // Advance the outer iterator to produce a new inner iterator.
+            let i_item = self.outer_iterator.next()?;
+            let j_iter = (self.iter_fn)(&i_item);
+            self.inner = Some((i_item, j_iter));
         }
     }
 }
