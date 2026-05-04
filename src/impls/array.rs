@@ -19,7 +19,15 @@ impl<T: Exhaust, const N: usize> Exhaust for [T; N] {
 
 /// Iterator implementation of `[T; N]::exhaust()`.
 pub struct ExhaustArray<T: Exhaust, const N: usize> {
+    /// Iterators for each element of the array.
+    ///
+    /// Ideally we would not store any `Peekable` state for the last element, but that would require
+    /// the type `[iter::Peekable<T::Iter>; N - 1]`, which stable Rust does not yet allow.
     state: [iter::Peekable<T::Iter>; N],
+
+    /// For iterators over `[T; 0]`, whether the sole value has been produced.
+    ///
+    /// Ideally this would be stored only if N == 0, but that is not possible in stable Rust.
     done_zero: bool,
 }
 
@@ -53,8 +61,8 @@ impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
                 None
             } else {
                 self.done_zero = true;
-                // This is just `Some([])` in disguise
-                Some([(); N].map(|()| unreachable!()))
+                // This is just `Some([])` in disguise.
+                Some([(); N].map(|()| unreachable!("called zero times")))
             };
         }
 
