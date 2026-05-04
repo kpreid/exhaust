@@ -1,9 +1,12 @@
-use core::{fmt, num, ops};
+//! Tests of implementations of [`Exhaust`] for [`core`] types.
+
+use core::fmt;
+use core::num;
+use core::ops;
 
 use exhaust::Exhaust;
 
-mod helper;
-use helper::{check, check_double};
+use crate::helper::{check, check_double};
 
 #[test]
 fn impl_unit() {
@@ -280,26 +283,5 @@ mod impl_ops {
     #[test]
     fn impl_range_to_inclusive() {
         check(vec![..=false, ..=true]);
-    }
-}
-
-/// Tests of `exhaust::Iter`, which isn't strictly an impl for crate core, but doesn't need its
-/// own test target.
-mod iter {
-    #[test]
-    fn size_hint_and_len() {
-        let it = exhaust::Iter::<bool>::default();
-        assert_eq!(it.size_hint(), (2, Some(2)));
-        assert_eq!(it.len(), 2);
-    }
-
-    #[test]
-    fn clone() {
-        let mut it1 = exhaust::Iter::<bool>::default();
-        assert_eq!(it1.next(), Some(false));
-        let mut it2 = it1.clone();
-
-        assert_eq!(it2.len(), 1);
-        assert_eq!(it2.next(), Some(true));
     }
 }
