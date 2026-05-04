@@ -11,6 +11,13 @@ include = ["*.rs", "README.md"]
 [lib]
 proc-macro = true
 
+# all tests are in other packages (though we might someday add tests of the internal helpers)
+test = false
+
+# macro documentation is located in the `exhaust` package
+doc = false
+doctest = false
+
 [dependencies]
 # TODO: Remove itertools dependency when MSRV ≥ 1.85 and we can use FromIterator on tuples
 itertools = { workspace = true }
