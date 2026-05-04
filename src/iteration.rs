@@ -113,8 +113,7 @@ where
 
 impl<I, J, O> Iterator for FlatZipMap<I, J, O>
 where
-    I: Iterator,
-    I::Item: Clone,
+    I: Iterator<Item: Clone>,
     J: Iterator,
 {
     type Item = O;
@@ -143,8 +142,9 @@ where
 
 impl<I, J, O> iter::FusedIterator for FlatZipMap<I, J, O>
 where
-    I: Iterator,
-    I::Item: Clone,
-    J: Iterator,
+    I: iter::FusedIterator<Item: Clone>,
+    // This bound is not necessary in the current implementation,
+    // but there isn’t any point to not requiring it.
+    J: iter::FusedIterator,
 {
 }
