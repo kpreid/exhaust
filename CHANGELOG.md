@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* Iterators for several standard library enums now implement `ExactSizeIterator`.
+* `NonZero` iterators now have an improved but not perfect `size_hint()`.
+
+### Fixed
+
+* Corrected incorrect bounds on a `FusedIterator` implementation.
+  (It is not possible to obtain a misbehaving value of this undocumented type, but this change could
+  technically cause some code to stop compiling.)
+
 ## 0.2.5 (2026-03-14)
 
 ### Added
