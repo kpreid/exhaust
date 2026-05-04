@@ -39,6 +39,9 @@ default = ["std"]
 std = ["alloc"]
 alloc = ["dep:itertools"]
 
+[lib]
+test = false # all tests are external / integration tests
+
 [[test]]
 name = "alloc_impls"
 required-features = ["alloc"]
