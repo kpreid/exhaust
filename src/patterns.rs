@@ -119,6 +119,11 @@ macro_rules! impl_via_array {
                 }
             }
             impl ::core::iter::FusedIterator for ExhaustIter {}
+            impl ::core::iter::ExactSizeIterator for ExhaustIter where
+                // this bound is not necessary but proves we are correct to have this impl
+                ::core::ops::Range<u8>: ::core::iter::ExactSizeIterator
+            {
+            }
         };
     };
 }
