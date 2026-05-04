@@ -70,17 +70,14 @@ impl<T: Exhaust, const N: usize> Iterator for ExhaustArray<T, N> {
 
         // Gather that next item.
         // unwrap() cannot fail because we checked with peek().
-        let mut i = 0;
-        let item = [(); N].map(|()| {
-            let element = if i == N - 1 {
+        let item: [<T as Exhaust>::Factory; N] = core::array::from_fn(|i| {
+            if i == N - 1 {
                 // Advance the "last digit".
                 self.state[i].next().unwrap()
             } else {
                 // Don't advance the others
                 self.state[i].peek().unwrap().clone()
-            };
-            i += 1;
-            element
+            }
         });
 
         // "Carry": if the rightmost iterator is exhausted, advance the one to the left,
