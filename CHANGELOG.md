@@ -6,6 +6,8 @@
 
 * Iterators for several standard library enums now implement `ExactSizeIterator`.
 * `NonZero` iterators now have an improved but not perfect `size_hint()`.
+* `exhaust::Iter` now forwards `nth()`, `nth_back()`, and `last()` to the underlying iterator,
+  which may improve performance.
 
 ### Fixed
 
