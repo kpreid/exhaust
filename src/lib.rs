@@ -389,60 +389,11 @@ impl<T: Exhaust> Default for Iter<T> {
     }
 }
 
-impl<T: Exhaust> Iterator for Iter<T> {
+patterns::impl_iterator_for_newtype!([T: Exhaust] for Iter<T> {
     type Item = T;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(T::from_factory)
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-
-    fn fold<B, F>(self, init: B, mut f: F) -> B
-    where
-        Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
-    {
-        self.0.fold(init, |state, item_factory| {
-            f(state, T::from_factory(item_factory))
-        })
-    }
-
-    // Ideally we would forward `try_fold()`, but that is not possible until the `Try` trait
-    // is stabilized.
-
-    fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.0.nth(n).map(T::from_factory)
-    }
-
-    fn last(self) -> Option<Self::Item> {
-        self.0.last().map(T::from_factory)
-    }
-}
-
-impl<T: Exhaust<Iter: DoubleEndedIterator>> DoubleEndedIterator for Iter<T> {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back().map(T::from_factory)
-    }
-
-    fn rfold<B, F>(self, init: B, mut f: F) -> B
-    where
-        Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
-    {
-        self.0.rfold(init, |state, item_factory| {
-            f(state, T::from_factory(item_factory))
-        })
-    }
-
-    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.0.nth_back(n).map(T::from_factory)
-    }
-}
+    fn mapper = T::from_factory;
+    double_ended_where [T: Exhaust<Iter: DoubleEndedIterator>];
+});
 
 impl<T: Exhaust> FusedIterator for Iter<T> {
     // Note: This is only correct because of the `FusedIterator` bound on `Exhaust::Iter`.

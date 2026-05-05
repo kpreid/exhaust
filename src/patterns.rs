@@ -166,3 +166,75 @@ macro_rules! impl_newtype_generic {
     };
 }
 pub(crate) use impl_newtype_generic;
+
+/// Implement [`Iterator`] and [`DoubleEndedIterator`] for a newtype
+/// to forward to its `.0` field and call a function to map each item.
+///
+/// The function expression will be evaluated at each call site,
+/// so a named function should be preferred over a closure.
+macro_rules! impl_iterator_for_newtype {
+    (
+        [$($generics:tt)*] for $iterator_type:ty {
+            type Item = $item_type:ty;
+            fn mapper = $mapping_function:expr;
+            double_ended_where [$($double_ended_bounds:tt)*];
+        }
+    ) => {
+        impl<$($generics)*> Iterator for $iterator_type {
+            type Item = $item_type;
+
+            #[inline]
+            fn next(&mut self) -> Option<Self::Item> {
+                self.0.next().map($mapping_function)
+            }
+
+            #[inline]
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.0.size_hint()
+            }
+
+            fn fold<B, F>(self, init: B, mut f: F) -> B
+            where
+                Self: Sized,
+                F: FnMut(B, Self::Item) -> B,
+            {
+                self.0.fold(init, |state, inner_item| {
+                    f(state, ($mapping_function)(inner_item))
+                })
+            }
+
+            // Ideally we would forward `try_fold()`, but that is not possible until the `Try` trait
+            // is stabilized.
+
+            fn nth(&mut self, n: usize) -> Option<Self::Item> {
+                self.0.nth(n).map($mapping_function)
+            }
+
+            fn last(self) -> Option<Self::Item> {
+                self.0.last().map($mapping_function)
+            }
+        }
+
+        impl<$($generics)*> DoubleEndedIterator for $iterator_type
+        where $($double_ended_bounds)* {
+            fn next_back(&mut self) -> Option<Self::Item> {
+                self.0.next_back().map($mapping_function)
+            }
+
+            fn rfold<B, F>(self, init: B, mut f: F) -> B
+            where
+                Self: Sized,
+                F: FnMut(B, Self::Item) -> B,
+            {
+                self.0.rfold(init, |state, inner_item| {
+                    f(state, ($mapping_function)(inner_item))
+                })
+            }
+
+            fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+                self.0.nth_back(n).map($mapping_function)
+            }
+        }
+    };
+}
+pub(crate) use impl_iterator_for_newtype;
