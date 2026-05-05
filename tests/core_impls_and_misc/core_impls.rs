@@ -89,8 +89,8 @@ fn impl_char() {
 
 #[test]
 fn impl_nonzero_unsigned() {
-    // The non-u8 impls are macro-generated the same way.
-    check(
+    // The non-u8 impls are macro-generated the same way as this one.
+    check_double_exact(
         (1..=255)
             .map(|i| num::NonZeroU8::new(i).unwrap())
             .collect::<Vec<num::NonZeroU8>>(),
@@ -99,7 +99,7 @@ fn impl_nonzero_unsigned() {
 
 #[test]
 fn impl_nonzero_signed() {
-    // The non-i8 impls are macro-generated the same way.
+    // The non-i8 impls are macro-generated the same way as this one.
     check(
         (-128..=127)
             .filter_map(num::NonZeroI8::new)

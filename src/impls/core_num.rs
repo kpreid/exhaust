@@ -1,51 +1,89 @@
 use core::iter;
 use core::num::{self, NonZero};
+use core::ops::RangeInclusive;
 
-use crate::patterns::{impl_newtype_generic, impl_via_array};
+use crate::patterns::{
+    factory_is_self, impl_iterator_for_newtype, impl_newtype_generic, impl_via_array,
+};
 use crate::Exhaust;
 
 // -------------------------------------------------------------------------------------------------
 
-macro_rules! impl_nonzero {
+macro_rules! impl_nonzero_signed {
     ($t:ty) => {
         impl Exhaust for NonZero<$t> {
-            type Iter = ExhaustNonZero<$t, NonZero<$t>>;
+            // TODO: Use a better iterator implementation that does not need to check each element
+            // for being zero.
+            type Iter = ExhaustNonZeroSigned<$t, NonZero<$t>>;
 
             fn exhaust_factories() -> Self::Iter {
-                // TODO: This `filter_map()` is tidy and generic, but is probably not the optimal
-                // implementation for unsigned numbers, since if `next()` is not inlined, it'll
-                // need a comparison with zero on each iteration. But I haven’t checked.
-                ExhaustNonZero::<$t, NonZero<$t>>(
+                ExhaustNonZeroSigned::<$t, NonZero<$t>>(
                     <$t>::exhaust_factories().filter_map(NonZero::new),
                 )
             }
 
-            crate::patterns::factory_is_self!();
+            factory_is_self!();
         }
+    };
+}
+
+macro_rules! impl_nonzero_unsigned {
+    ($t:ty) => {
+        impl Exhaust for NonZero<$t> {
+            // TODO: Once MSRV ≥ Rust 1.96, replace this with
+            // type Iter = core::range::RangeInclusiveIter<NonZero<$t>>;
+            type Iter = ExhaustNonZeroUnsigned<$t>;
+
+            fn exhaust_factories() -> Self::Iter {
+                const { ExhaustNonZeroUnsigned(1..=<$t>::MAX) }
+            }
+
+            factory_is_self!();
+        }
+
+        // This impl can’t be generic because we can’t name the T: ZeroablePrimitive bound
+        // which NonZero<T> requires.
+        const _: () = {
+            fn nonzero_or_panic(value: $t) -> NonZero<$t> {
+                match NonZero::try_from(value) {
+                    Ok(nz) => nz,
+                    Err(_) => unreachable!(),
+                }
+            }
+
+            impl_iterator_for_newtype!([] for ExhaustNonZeroUnsigned<$t> {
+                type Item = NonZero<$t>;
+                fn mapper = nonzero_or_panic;
+                double_ended_where [];
+            });
+            impl iter::FusedIterator for ExhaustNonZeroUnsigned<$t> {}
+            impl iter::ExactSizeIterator for ExhaustNonZeroUnsigned<$t> {}
+        };
     };
 }
 
 // Implement `Exhaust` for all `NonZero`-able numbers that are no larger than 32 bits.
 // This should match <https://doc.rust-lang.org/std/num/trait.ZeroablePrimitive.html>
 // (as long as that's the unstable trait backing `NonZero`), except for those that are too large.
-impl_nonzero!(i8);
-impl_nonzero!(i16);
-impl_nonzero!(i32);
-impl_nonzero!(u8);
-impl_nonzero!(u16);
-impl_nonzero!(u32);
+impl_nonzero_signed!(i8);
+impl_nonzero_signed!(i16);
+impl_nonzero_signed!(i32);
+impl_nonzero_unsigned!(u8);
+impl_nonzero_unsigned!(u16);
+impl_nonzero_unsigned!(u32);
 
-/// Iterator implementation for `NonZero::exhaust()`.
+/// Iterator implementation for `NonZero::exhaust()` on signed integers.
+//---
 // TODO: This should just be a type_alias_impl_trait for FilterMap when that's stable.
 // Right now, it's just public-in-private so unnameable that way.
 #[derive(Clone, Debug)]
 #[doc(hidden)]
 #[allow(clippy::type_complexity)]
-pub struct ExhaustNonZero<T: Exhaust, N>(
+pub struct ExhaustNonZeroSigned<T: Exhaust, N>(
     iter::FilterMap<<T as Exhaust>::Iter, fn(<T as Exhaust>::Factory) -> Option<N>>,
 );
 
-impl<T: Exhaust, N> Iterator for ExhaustNonZero<T, N> {
+impl<T: Exhaust, N> Iterator for ExhaustNonZeroSigned<T, N> {
     type Item = N;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -65,7 +103,16 @@ impl<T: Exhaust, N> Iterator for ExhaustNonZero<T, N> {
         (lower, upper)
     }
 }
-impl<T: Exhaust, N> iter::FusedIterator for ExhaustNonZero<T, N> {}
+impl<T: Exhaust, N> iter::FusedIterator for ExhaustNonZeroSigned<T, N> {}
+
+/// Iterator implementation for `NonZero::exhaust()` on unsigned integers.
+//---
+// Note: the `Iterator` implementations are in the `impl_nonzero_unsigned!` macro.
+//
+// TODO: Once MSRV ≥ Rust 1.96, replace this entirely with RangeInclusiveIter<NonZero<$t>>.
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct ExhaustNonZeroUnsigned<T>(RangeInclusive<T>);
 
 // -------------------------------------------------------------------------------------------------
 

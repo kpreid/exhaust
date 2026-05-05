@@ -5,15 +5,19 @@
 ### Added
 
 * Iterators for several standard library enums now implement `ExactSizeIterator`.
-* `NonZero` iterators now have an improved but not perfect `size_hint()`.
-* `exhaust::Iter` now forwards `nth()`, `nth_back()`, and `last()` to the underlying iterator,
-  which may improve performance.
+* Iterators for `NonZero<u*>` now implement `DoubleEndedIterator` and `ExactSizeIterator`.
 
 ### Fixed
 
 * Corrected incorrect bounds on a `FusedIterator` implementation.
   (It is not possible to obtain a misbehaving value of this undocumented type, but this change could
   technically cause some code to stop compiling.)
+
+### Performance improvements
+
+* Iterators for `NonZero<u*>` have been simplified.
+* Iterators for `NonZero<i*>` now have an improved but not perfect `size_hint()`.
+* `exhaust::Iter` now forwards `nth()`, `nth_back()`, and `last()` to the underlying iterator.
 
 ## 0.2.5 (2026-03-14)
 
