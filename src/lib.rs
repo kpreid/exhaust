@@ -411,6 +411,17 @@ impl<T: Exhaust> Iterator for Iter<T> {
             f(state, T::from_factory(item_factory))
         })
     }
+
+    // Ideally we would forward `try_fold()`, but that is not possible until the `Try` trait
+    // is stabilized.
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.0.nth(n).map(T::from_factory)
+    }
+
+    fn last(self) -> Option<Self::Item> {
+        self.0.last().map(T::from_factory)
+    }
 }
 
 impl<T: Exhaust<Iter: DoubleEndedIterator>> DoubleEndedIterator for Iter<T> {
@@ -426,6 +437,10 @@ impl<T: Exhaust<Iter: DoubleEndedIterator>> DoubleEndedIterator for Iter<T> {
         self.0.rfold(init, |state, item_factory| {
             f(state, T::from_factory(item_factory))
         })
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.0.nth_back(n).map(T::from_factory)
     }
 }
 
