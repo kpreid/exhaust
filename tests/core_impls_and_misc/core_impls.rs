@@ -6,17 +6,17 @@ use core::ops;
 
 use exhaust::Exhaust;
 
-use crate::helper::{check, check_double};
+use crate::helper::{check, check_double, check_double_exact};
 
 #[test]
 fn impl_unit() {
-    check_double(vec![()]);
+    check_double_exact(vec![()]);
     assert_eq!(size_of_val(&<()>::exhaust()), 1);
 }
 
 #[test]
 fn impl_single_element_tuple() {
-    check_double(vec![(false,), (true,)]);
+    check_double_exact(vec![(false,), (true,)]);
     assert_eq!(size_of_val(&<(bool,)>::exhaust()), 1);
 }
 
@@ -39,7 +39,7 @@ fn impl_nontrivial_tuple() {
 #[test]
 fn impl_phantom_data() {
     use core::marker::PhantomData;
-    check_double::<PhantomData<bool>>(vec![PhantomData]);
+    check_double_exact::<PhantomData<bool>>(vec![PhantomData]);
     assert_eq!(size_of_val(&<PhantomData<bool>>::exhaust()), 1);
 }
 
@@ -47,13 +47,13 @@ fn impl_phantom_data() {
 /// but it is also the only _uninhabited_ type in the standard library.
 #[test]
 fn impl_infallible() {
-    check_double(Vec::<core::convert::Infallible>::new());
+    check_double_exact(Vec::<core::convert::Infallible>::new());
     assert_eq!(size_of_val(&core::convert::Infallible::exhaust()), 0);
 }
 
 #[test]
 fn impl_bool() {
-    check_double(vec![false, true]);
+    check_double_exact(vec![false, true]);
     assert_eq!(size_of_val(&<bool>::exhaust()), 1);
 }
 
@@ -154,7 +154,7 @@ fn impl_array_of_3() {
 #[test]
 fn impl_ordering() {
     use core::cmp::Ordering;
-    check(vec![Ordering::Less, Ordering::Equal, Ordering::Greater]);
+    check_double_exact(vec![Ordering::Less, Ordering::Equal, Ordering::Greater]);
     assert_eq!(size_of_val(&Ordering::exhaust()), 2);
 }
 
@@ -182,12 +182,12 @@ mod impl_cell {
 
     #[test]
     fn impl_cell() {
-        check(vec![Cell::new(false), Cell::new(true)]);
+        check_double_exact(vec![Cell::new(false), Cell::new(true)]);
     }
 
     #[test]
     fn impl_ref_cell() {
-        check(vec![RefCell::new(false), RefCell::new(true)]);
+        check_double_exact(vec![RefCell::new(false), RefCell::new(true)]);
     }
 
     #[test]

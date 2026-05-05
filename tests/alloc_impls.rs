@@ -4,12 +4,12 @@ use alloc::borrow::Cow;
 use exhaust::Exhaust;
 
 mod helper;
-use helper::{check, check_double};
+use helper::{check, check_double_exact};
 
 /// Test for Cow<SomeTypeThatImplementsClone>
 #[test]
 fn impl_cow_clone() {
-    check_double::<Cow<'_, bool>>(vec![Cow::Owned(false), Cow::Owned(true)]);
+    check_double_exact::<Cow<'_, bool>>(vec![Cow::Owned(false), Cow::Owned(true)]);
 }
 
 /// Test for Cow with a type that does *not* implement Clone.

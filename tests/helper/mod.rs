@@ -5,47 +5,24 @@ use ::std::vec::Vec;
 
 use ::exhaust::Exhaust;
 
+// -------------------------------------------------------------------------------------------------
+
 /// All practical test cases are assumed to use fewer than this many explicit elements.
 const LIMIT: usize = 1000;
 
-#[allow(dead_code)] // compiled from multiple crates
 #[track_caller]
-pub(crate) fn check<T: Exhaust + fmt::Debug + PartialEq>(expected: Vec<T>) {
+fn check_inner<T: Exhaust + fmt::Debug + PartialEq>(expected: &[T]) {
     assert!(expected.len() < LIMIT);
 
     let iter = T::exhaust();
     let size_hint = iter.size_hint();
-    assert_eq!(iter.take(LIMIT).collect::<Vec<T>>(), expected);
+    // TODO: also check the size hint on each step
+    assert_eq!(
+        iter.take(LIMIT).collect::<Vec<T>>(),
+        expected,
+        "forward iteration"
+    );
     assert_size_hint_valid(size_hint, expected.len());
-}
-
-#[allow(dead_code)] // compiled from multiple crates
-#[track_caller]
-pub(crate) fn check_double<T: Exhaust + fmt::Debug + PartialEq>(mut expected: Vec<T>)
-where
-    T::Iter: DoubleEndedIterator,
-{
-    assert!(expected.len() < LIMIT);
-
-    let fwd_iter = T::exhaust();
-    let fwd_size_hint = fwd_iter.size_hint();
-    assert_eq!(
-        fwd_iter.take(LIMIT).collect::<Vec<T>>(),
-        expected,
-        "forward"
-    );
-    assert_size_hint_valid(fwd_size_hint, expected.len());
-
-    expected.reverse();
-
-    let rev_iter = T::exhaust().rev();
-    let rev_size_hint = rev_iter.size_hint();
-    assert_eq!(
-        rev_iter.take(LIMIT).collect::<Vec<T>>(),
-        expected,
-        "reverse"
-    );
-    assert_size_hint_valid(rev_size_hint, expected.len());
 }
 
 #[track_caller]
@@ -57,5 +34,72 @@ pub(crate) fn assert_size_hint_valid((lower, upper): (usize, Option<usize>), exp
     assert!(
         upper.map_or(true, |upper| upper >= expected_len),
         "upper bound {upper:?} is less than expected length {expected_len}",
+    );
+}
+
+// -------------------------------------------------------------------------------------------------
+
+/// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
+///
+/// Does not check for [`DoubleEndedIterator`] or [`ExactSizeIterator`].
+#[allow(dead_code)] // compiled from multiple crates
+#[track_caller]
+pub(crate) fn check<T: Exhaust + fmt::Debug + PartialEq>(expected: Vec<T>) {
+    check_inner(&expected)
+}
+
+/// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
+///
+/// Checks the [`ExactSizeIterator`] implementation.
+/// Does not check [`DoubleEndedIterator`].
+#[allow(dead_code)] // compiled from multiple crates
+#[track_caller]
+pub(crate) fn check_exact<T: Exhaust + fmt::Debug + PartialEq>(expected: Vec<T>)
+where
+    T::Iter: ExactSizeIterator,
+{
+    check_inner(&expected);
+    assert_eq!(
+        T::exhaust().len(),
+        expected.len(),
+        "len() does not match number of elements produced"
+    );
+}
+
+/// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
+///
+/// Checks the [`DoubleEndedIterator`] implementation.
+/// Does not check [`ExactSizeIterator`].
+#[allow(dead_code)] // compiled from multiple crates
+#[track_caller]
+pub(crate) fn check_double<T: Exhaust + fmt::Debug + PartialEq>(mut expected: Vec<T>)
+where
+    T::Iter: DoubleEndedIterator,
+{
+    check_inner::<T>(&expected);
+
+    expected.reverse();
+    assert_eq!(
+        T::exhaust().rev().take(LIMIT).collect::<Vec<T>>(),
+        expected,
+        "reverse iteration"
+    );
+}
+
+/// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
+///
+/// Checks the [`DoubleEndedIterator`] and [`ExactSizeIterator`] implementations.
+#[allow(dead_code)] // compiled from multiple crates
+#[track_caller]
+pub(crate) fn check_double_exact<T: Exhaust + fmt::Debug + PartialEq>(expected: Vec<T>)
+where
+    T::Iter: DoubleEndedIterator + ExactSizeIterator,
+{
+    let expected_len = expected.len();
+    check_double(expected);
+    assert_eq!(
+        T::exhaust().len(),
+        expected_len,
+        "len() does not match number of elements produced"
     );
 }
