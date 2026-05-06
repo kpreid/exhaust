@@ -14,34 +14,6 @@ fn ex<T: exhaust::Exhaust>() -> exhaust::Iter<T> {
     T::exhaust()
 }
 
-fn c<T: std::fmt::Debug + exhaust::Exhaust>() -> std::vec::Vec<T>
-where
-    <T as exhaust::Exhaust>::Iter: std::fmt::Debug,
-{
-    let mut iterator = T::exhaust();
-    let mut result = std::vec::Vec::new();
-    let size_hint = p::Iterator::size_hint(&iterator);
-    std::println!("Initial iterator state {iterator:?}");
-    while let p::Some(item) = p::Iterator::next(&mut iterator) {
-        std::println!("{}. {:?} from {:?}", result.len(), item, iterator);
-        if result.len() >= 10 {
-            std::panic!(
-                "exhaustive iterator didn't stop when expected;\n\
-                 last item: {item:#?}\nstate: {iterator:#?}"
-            );
-        }
-        result.push(item);
-    }
-    std::println!("Final iterator state {iterator:?}");
-
-    helper::assert_size_hint_valid(size_hint, result.len());
-
-    // Check the final size hint is not nonzero
-    helper::assert_size_hint_valid(p::Iterator::size_hint(&iterator), 0);
-
-    result
-}
-
 fn assert_factory_is_self<T: exhaust::Exhaust<Factory = T>>() {}
 
 /// Helper struct that implements `Exhaust`, *not* in the `factory_is_self` way, but meets the
@@ -59,7 +31,7 @@ struct UnitStructFis;
 
 #[test]
 fn struct_unit() {
-    std::assert_eq!(c::<UnitStruct>(), std::vec![UnitStruct]);
+    helper::check::<UnitStruct>(std::vec![UnitStruct]);
 
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<UnitStruct>()),
@@ -69,7 +41,7 @@ fn struct_unit() {
 }
 #[test]
 fn struct_unit_fis() {
-    std::assert_eq!(c::<UnitStructFis>(), std::vec![UnitStructFis]);
+    helper::check::<UnitStructFis>(std::vec![UnitStructFis]);
 
     assert_factory_is_self::<UnitStructFis>();
 
@@ -90,51 +62,48 @@ struct SimpleStruct {
 
 #[test]
 fn struct_simple() {
-    std::assert_eq!(
-        c::<SimpleStruct>(),
-        std::vec![
-            SimpleStruct {
-                a: false,
-                b: false,
-                c: false
-            },
-            SimpleStruct {
-                a: false,
-                b: false,
-                c: true
-            },
-            SimpleStruct {
-                a: false,
-                b: true,
-                c: false
-            },
-            SimpleStruct {
-                a: false,
-                b: true,
-                c: true
-            },
-            SimpleStruct {
-                a: true,
-                b: false,
-                c: false
-            },
-            SimpleStruct {
-                a: true,
-                b: false,
-                c: true
-            },
-            SimpleStruct {
-                a: true,
-                b: true,
-                c: false
-            },
-            SimpleStruct {
-                a: true,
-                b: true,
-                c: true
-            },
-        ]
-    )
+    helper::check::<SimpleStruct>(std::vec![
+        SimpleStruct {
+            a: false,
+            b: false,
+            c: false
+        },
+        SimpleStruct {
+            a: false,
+            b: false,
+            c: true
+        },
+        SimpleStruct {
+            a: false,
+            b: true,
+            c: false
+        },
+        SimpleStruct {
+            a: false,
+            b: true,
+            c: true
+        },
+        SimpleStruct {
+            a: true,
+            b: false,
+            c: false
+        },
+        SimpleStruct {
+            a: true,
+            b: false,
+            c: true
+        },
+        SimpleStruct {
+            a: true,
+            b: true,
+            c: false
+        },
+        SimpleStruct {
+            a: true,
+            b: true,
+            c: true
+        },
+    ])
 }
 
 /// Similar to [`struct_simple()`] test but with `factory_is_self`.
@@ -149,15 +118,12 @@ fn struct_simple_fis() {
     }
 
     #[cfg_attr(any(), rustfmt::skip)]
-    std::assert_eq!(
-        c::<SimpleStructFis>(),
-        std::vec![
-            SimpleStructFis { not_fis: NotFis, a: false, b: false },
-            SimpleStructFis { not_fis: NotFis, a: false, b: true },
-            SimpleStructFis { not_fis: NotFis, a: true, b: false },
-            SimpleStructFis { not_fis: NotFis, a: true, b: true },
-        ]
-    );
+    helper::check::<SimpleStructFis>(std::vec![
+        SimpleStructFis { not_fis: NotFis, a: false, b: false },
+        SimpleStructFis { not_fis: NotFis, a: false, b: true },
+        SimpleStructFis { not_fis: NotFis, a: true, b: false },
+        SimpleStructFis { not_fis: NotFis, a: true, b: true },
+    ]);
     assert_factory_is_self::<SimpleStructFis>();
 }
 
@@ -173,15 +139,12 @@ struct GenericStruct<'a, T: std::marker::Copy, const N: usize> {
 fn struct_generic() {
     let p = std::marker::PhantomData;
     #[cfg_attr(any(), rustfmt::skip)]
-    std::assert_eq!(
-        c::<GenericStruct<bool, 3>>(),
-        std::vec![
-            GenericStruct { a: false, b: false, p },
-            GenericStruct { a: false, b: true, p },
-            GenericStruct { a: true, b: false, p },
-            GenericStruct { a: true, b: true, p },
-        ]
-    );
+    helper::check::<GenericStruct<bool, 3>>(std::vec![
+        GenericStruct { a: false, b: false, p },
+        GenericStruct { a: false, b: true, p },
+        GenericStruct { a: true, b: false, p },
+        GenericStruct { a: true, b: true, p },
+    ]);
 }
 
 #[test]
@@ -195,26 +158,20 @@ fn struct_generic_and_fis() {
     }
 
     #[cfg_attr(any(), rustfmt::skip)]
-    std::assert_eq!(
-        c::<GenericFis<bool>>(),
-        std::vec![
-            GenericFis { not_fis: NotFis, a: false, b: false },
-            GenericFis { not_fis: NotFis, a: false, b: true },
-            GenericFis { not_fis: NotFis, a: true, b: false },
-            GenericFis { not_fis: NotFis, a: true, b: true },
-        ]
-    );
+    helper::check::<GenericFis<bool>>(std::vec![
+        GenericFis { not_fis: NotFis, a: false, b: false },
+        GenericFis { not_fis: NotFis, a: false, b: true },
+        GenericFis { not_fis: NotFis, a: true, b: false },
+        GenericFis { not_fis: NotFis, a: true, b: true },
+    ]);
     assert_factory_is_self::<GenericFis<bool>>();
 
     // A generic factory_is_self type can still be used with parameters that aren't factory_is_self.
-    std::assert_eq!(
-        c::<GenericFis<NotFis>>(),
-        [GenericFis {
-            not_fis: NotFis,
-            a: NotFis,
-            b: NotFis
-        }]
-    );
+    helper::check::<GenericFis<NotFis>>(std::vec![GenericFis {
+        not_fis: NotFis,
+        a: NotFis,
+        b: NotFis
+    }]);
 }
 
 #[derive(Debug, exhaust::Exhaust, PartialEq)]
@@ -224,15 +181,12 @@ struct UninhabitedStruct {
 
 #[test]
 fn struct_uninhabited_generic() {
-    std::assert_eq!(
-        c::<GenericStruct<std::convert::Infallible, 100>>(),
-        std::vec![]
-    )
+    helper::check::<GenericStruct<std::convert::Infallible, 100>>(std::vec![]);
 }
 
 #[test]
 fn struct_uninhabited_nongeneric() {
-    std::assert_eq!(c::<UninhabitedStruct>(), std::vec![]);
+    helper::check::<UninhabitedStruct>(std::vec![]);
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<UninhabitedStruct>()),
         (0, p::Some(0)),
@@ -245,7 +199,7 @@ enum EmptyEnum {}
 
 #[test]
 fn enum_empty() {
-    std::assert_eq!(c::<EmptyEnum>(), std::vec![]);
+    helper::check::<EmptyEnum>(std::vec![]);
 
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<EmptyEnum>()),
@@ -261,7 +215,7 @@ enum OneValueEnum {
 
 #[test]
 fn enum_one_value() {
-    std::assert_eq!(c::<OneValueEnum>(), std::vec![OneValueEnum::Foo]);
+    helper::check::<OneValueEnum>(std::vec![OneValueEnum::Foo]);
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<OneValueEnum>()),
         (1, p::Some(1)),
@@ -278,10 +232,11 @@ enum FieldlessEnum {
 
 #[test]
 fn enum_fieldless_multi() {
-    std::assert_eq!(
-        c::<FieldlessEnum>(),
-        std::vec![FieldlessEnum::Foo, FieldlessEnum::Bar, FieldlessEnum::Baz]
-    );
+    helper::check::<FieldlessEnum>(std::vec![
+        FieldlessEnum::Foo,
+        FieldlessEnum::Bar,
+        FieldlessEnum::Baz
+    ]);
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<FieldlessEnum>()),
         (3, p::Some(3)),
@@ -299,14 +254,11 @@ enum FieldlessEnumFis {
 
 #[test]
 fn enum_fieldless_multi_fis() {
-    std::assert_eq!(
-        c::<FieldlessEnumFis>(),
-        std::vec![
-            FieldlessEnumFis::Foo,
-            FieldlessEnumFis::Bar,
-            FieldlessEnumFis::Baz
-        ]
-    );
+    helper::check::<FieldlessEnumFis>(std::vec![
+        FieldlessEnumFis::Foo,
+        FieldlessEnumFis::Bar,
+        FieldlessEnumFis::Baz
+    ]);
     assert_factory_is_self::<FieldlessEnumFis>();
 }
 
@@ -324,31 +276,25 @@ enum EnumWithFieldsFis {
 
 #[test]
 fn enum_fields() {
-    std::assert_eq!(
-        c::<EnumWithFields>(),
-        std::vec![
-            EnumWithFields::Foo(false, false),
-            EnumWithFields::Foo(false, true),
-            EnumWithFields::Foo(true, false),
-            EnumWithFields::Foo(true, true),
-            EnumWithFields::Bar(false),
-            EnumWithFields::Bar(true),
-        ]
-    );
+    helper::check::<EnumWithFields>(std::vec![
+        EnumWithFields::Foo(false, false),
+        EnumWithFields::Foo(false, true),
+        EnumWithFields::Foo(true, false),
+        EnumWithFields::Foo(true, true),
+        EnumWithFields::Bar(false),
+        EnumWithFields::Bar(true),
+    ]);
 }
 #[test]
 fn enum_fields_fis() {
-    std::assert_eq!(
-        c::<EnumWithFieldsFis>(),
-        std::vec![
-            EnumWithFieldsFis::Foo(false, false),
-            EnumWithFieldsFis::Foo(false, true),
-            EnumWithFieldsFis::Foo(true, false),
-            EnumWithFieldsFis::Foo(true, true),
-            EnumWithFieldsFis::Bar(false, NotFis),
-            EnumWithFieldsFis::Bar(true, NotFis),
-        ]
-    );
+    helper::check::<EnumWithFieldsFis>(std::vec![
+        EnumWithFieldsFis::Foo(false, false),
+        EnumWithFieldsFis::Foo(false, true),
+        EnumWithFieldsFis::Foo(true, false),
+        EnumWithFieldsFis::Foo(true, true),
+        EnumWithFieldsFis::Bar(false, NotFis),
+        EnumWithFieldsFis::Bar(true, NotFis),
+    ]);
     assert_factory_is_self::<EnumWithFieldsFis>();
 }
 
@@ -361,15 +307,12 @@ enum EnumWithGeneric<'a, T> {
 
 #[test]
 fn enum_generic() {
-    std::assert_eq!(
-        c::<EnumWithGeneric<'static, bool>>(),
-        std::vec![
-            EnumWithGeneric::Before(std::marker::PhantomData),
-            EnumWithGeneric::Generic(false),
-            EnumWithGeneric::Generic(true),
-            EnumWithGeneric::After,
-        ]
-    );
+    helper::check::<EnumWithGeneric<'static, bool>>(std::vec![
+        EnumWithGeneric::Before(std::marker::PhantomData),
+        EnumWithGeneric::Generic(false),
+        EnumWithGeneric::Generic(true),
+        EnumWithGeneric::After,
+    ]);
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<EnumWithGeneric<'static, bool>>()),
         (1, p::None),
@@ -386,10 +329,10 @@ enum EnumWithUninhabited {
 /// Test that an uninhabited variant is skipped (rather than, terminating the iteration early).
 #[test]
 fn enum_with_uninhabited_nongeneric() {
-    std::assert_eq!(
-        c::<EnumWithUninhabited>(),
-        [EnumWithUninhabited::Before, EnumWithUninhabited::After]
-    );
+    helper::check::<EnumWithUninhabited>(std::vec![
+        EnumWithUninhabited::Before,
+        EnumWithUninhabited::After
+    ]);
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<EnumWithUninhabited>()),
         (1, p::None),
@@ -397,13 +340,10 @@ fn enum_with_uninhabited_nongeneric() {
 }
 #[test]
 fn enum_with_uninhabited_generic() {
-    std::assert_eq!(
-        c::<EnumWithGeneric<std::convert::Infallible>>(),
-        [
-            EnumWithGeneric::Before(std::marker::PhantomData),
-            EnumWithGeneric::After,
-        ]
-    );
+    helper::check::<EnumWithGeneric<std::convert::Infallible>>(std::vec![
+        EnumWithGeneric::Before(std::marker::PhantomData),
+        EnumWithGeneric::After,
+    ]);
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<EnumWithGeneric<std::convert::Infallible>>()),
         (1, p::None),
@@ -417,9 +357,13 @@ fn newtype_struct() {
     #[derive(Debug, exhaust::Exhaust, PartialEq)]
     struct NewtypeStruct<T>(T);
 
-    c::<NewtypeStruct<bool>>();
+    helper::check::<NewtypeStruct<bool>>(std::vec![NewtypeStruct(false), NewtypeStruct(true)]);
     // using FieldlessEnum as a non-factory_is_self implementation to use in our generic newtype
-    c::<NewtypeStruct<FieldlessEnum>>();
+    helper::check::<NewtypeStruct<FieldlessEnum>>(std::vec![
+        NewtypeStruct(FieldlessEnum::Foo),
+        NewtypeStruct(FieldlessEnum::Bar),
+        NewtypeStruct(FieldlessEnum::Baz)
+    ]);
 
     std::assert_eq!(
         p::Iterator::size_hint(&ex::<NewtypeStruct<bool>>()),
@@ -440,10 +384,13 @@ fn newtype_struct_fis() {
     #[exhaust(factory_is_self)]
     struct NewtypeStructFis<T>(T);
 
-    c::<NewtypeStructFis<bool>>();
+    helper::check::<NewtypeStructFis<bool>>(std::vec![
+        NewtypeStructFis(false),
+        NewtypeStructFis(true)
+    ]);
 
     // A generic factory_is_self type can still be used with parameters that aren't factory_is_self.
-    std::assert_eq!(c::<NewtypeStructFis<NotFis>>(), [NewtypeStructFis(NotFis)]);
+    helper::check::<NewtypeStructFis<NotFis>>(std::vec![NewtypeStructFis(NotFis)]);
 }
 
 mod module {
@@ -470,10 +417,7 @@ fn function_containing_derive() {
     #[derive(Debug, PartialEq, exhaust::Exhaust)]
     struct StructInsideFn(bool);
 
-    std::assert_eq!(
-        c::<StructInsideFn>(),
-        std::vec![StructInsideFn(false), StructInsideFn(true)]
-    );
+    helper::check::<StructInsideFn>(std::vec![StructInsideFn(false), StructInsideFn(true)]);
 }
 
 #[allow(dead_code)]
@@ -508,7 +452,7 @@ fn not_a_name_conflict() {
     // We can name the not-conflicting type.
     _ = ExhaustFooIter(10);
     // We can use the exhaust() normally.
-    std::assert_eq!(c::<Foo>(), std::vec![Foo(false), Foo(true)])
+    helper::check::<Foo>(std::vec![Foo(false), Foo(true)]);
 }
 
 #[test]
