@@ -1,11 +1,12 @@
 #![allow(clippy::wildcard_imports)]
 
+use core::convert::identity;
 use core::pin::Pin;
 use core::{fmt, iter};
 
 use crate::iteration::{peekable_exhaust, FlatZipMap};
 use crate::patterns::{
-    delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_singleton,
+    self, delegate_factory_and_iter, factory_is_self, impl_newtype_generic, impl_singleton,
     impl_via_array,
 };
 use crate::Exhaust;
@@ -66,9 +67,9 @@ mod io {
     /// Produces each combination of a buffer state and a cursor position, except for those
     /// where the position is beyond the end of the buffer.
     impl<T: Exhaust + AsRef<[u8]> + Clone + fmt::Debug> Exhaust for io::Cursor<T> {
-        type Iter = FlatZipMap<crate::Iter<T>, core::ops::RangeInclusive<u64>, io::Cursor<T>>;
+        type Iter = ExhaustCursor<T>;
         fn exhaust_factories() -> Self::Iter {
-            FlatZipMap::new(
+            ExhaustCursor(FlatZipMap::new(
                 T::exhaust(),
                 |buf| 0..=(buf.as_ref().len() as u64),
                 |buf, pos| {
@@ -76,10 +77,23 @@ mod io {
                     cursor.set_position(pos);
                     cursor
                 },
-            )
+            ))
         }
         factory_is_self!();
     }
+
+    /// Iterator for [`io::Cursor`] values.
+    #[doc(hidden)] // public to satisfy the compiler, but not actually nameable except via associated type
+    #[derive(Clone, Debug)]
+    pub struct ExhaustCursor<T: Exhaust>(
+        FlatZipMap<crate::Iter<T>, core::ops::RangeInclusive<u64>, io::Cursor<T>>,
+    );
+    patterns::impl_iterator_for_newtype!([T: Exhaust + AsRef<[u8]> + Clone + fmt::Debug] for ExhaustCursor<T> {
+        type Item = io::Cursor<T>;
+        fn mapper = identity;
+        not_double_ended;
+    });
+    impl<T: Exhaust + AsRef<[u8]> + Clone + fmt::Debug> iter::FusedIterator for ExhaustCursor<T> {}
 
     impl<T: io::Read + Exhaust> Exhaust for io::BufReader<T> {
         delegate_factory_and_iter!(T);

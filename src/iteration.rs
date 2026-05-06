@@ -68,7 +68,7 @@ where
 /// Given an iterator and a function of its elements that yields an iterator,
 /// produce tuples of the two iterators' results.
 #[derive(Clone)]
-#[doc(hidden)] // Public because exposed as an iterator type. Not yet recommended for use.
+#[doc(hidden)] // Public because it was formerly exposed as an iterator type. Not yet recommended for use.
 pub struct FlatZipMap<I: Iterator, J: Iterator, O> {
     outer_iterator: I,
     inner: Option<(I::Item, J)>,

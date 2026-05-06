@@ -180,6 +180,40 @@ macro_rules! impl_iterator_for_newtype {
             double_ended_where [$($double_ended_bounds:tt)*];
         }
     ) => {
+        $crate::patterns::impl_iterator_for_newtype!([$($generics)*] for $iterator_type {
+            type Item = $item_type;
+            fn mapper = $mapping_function;
+            not_double_ended;
+        });
+
+        impl<$($generics)*> DoubleEndedIterator for $iterator_type
+        where $($double_ended_bounds)* {
+            fn next_back(&mut self) -> Option<Self::Item> {
+                self.0.next_back().map($mapping_function)
+            }
+
+            fn rfold<B, F>(self, init: B, mut f: F) -> B
+            where
+                Self: Sized,
+                F: FnMut(B, Self::Item) -> B,
+            {
+                self.0.rfold(init, |state, inner_item| {
+                    f(state, ($mapping_function)(inner_item))
+                })
+            }
+
+            fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+                self.0.nth_back(n).map($mapping_function)
+            }
+        }
+    };
+    (
+        [$($generics:tt)*] for $iterator_type:ty {
+            type Item = $item_type:ty;
+            fn mapper = $mapping_function:expr;
+            not_double_ended;
+        }
+    ) => {
         impl<$($generics)*> Iterator for $iterator_type {
             type Item = $item_type;
 
@@ -212,27 +246,6 @@ macro_rules! impl_iterator_for_newtype {
 
             fn last(self) -> Option<Self::Item> {
                 self.0.last().map($mapping_function)
-            }
-        }
-
-        impl<$($generics)*> DoubleEndedIterator for $iterator_type
-        where $($double_ended_bounds)* {
-            fn next_back(&mut self) -> Option<Self::Item> {
-                self.0.next_back().map($mapping_function)
-            }
-
-            fn rfold<B, F>(self, init: B, mut f: F) -> B
-            where
-                Self: Sized,
-                F: FnMut(B, Self::Item) -> B,
-            {
-                self.0.rfold(init, |state, inner_item| {
-                    f(state, ($mapping_function)(inner_item))
-                })
-            }
-
-            fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-                self.0.nth_back(n).map($mapping_function)
             }
         }
     };
