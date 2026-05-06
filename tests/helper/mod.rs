@@ -12,10 +12,11 @@ use ::exhaust::Exhaust;
 // it is trying to detect.
 
 #[track_caller]
-fn check_iter<T: fmt::Debug + PartialEq>(
-    mut iterator: impl FusedIterator<Item = T> + fmt::Debug,
-    expected: &[T],
-) {
+fn check_iter<T, I>(iterator: &mut I, expected: &[T])
+where
+    T: fmt::Debug + PartialEq,
+    I: FusedIterator<Item = T> + fmt::Debug + Clone,
+{
     let expected_len = expected.len();
     assert_size_hint_valid(iterator.size_hint(), expected.len());
 
@@ -25,7 +26,18 @@ fn check_iter<T: fmt::Debug + PartialEq>(
     loop {
         assert_size_hint_valid(iterator.size_hint(), expected_len - i);
 
-        let Some(item) = iterator.next() else {
+        let mut cloned_iterator = I::clone(iterator);
+        let maybe_item = iterator.next();
+        let cloned_item = cloned_iterator.next();
+
+        // Check that cloned iterators produce the same item.
+        // Note that this only checks calling next() once, but that should mostly suffice.
+        assert_eq!(
+            cloned_item, maybe_item,
+            "iterator produced a different item when cloned"
+        );
+
+        let Some(item) = maybe_item else {
             break;
         };
         ::std::println!("{i}. {item:?} from {iterator:?}");
@@ -54,7 +66,7 @@ fn check_iter<T: fmt::Debug + PartialEq>(
     assert_eq!(
         iterator.next(),
         None,
-        "iterator should produce None after the end"
+        "iterator should produce None after None"
     );
 }
 
@@ -78,7 +90,7 @@ pub(crate) fn assert_size_hint_valid((lower, upper): (usize, Option<usize>), exp
 #[allow(dead_code)] // compiled from multiple crates
 #[track_caller]
 pub(crate) fn check<T: Exhaust + fmt::Debug + PartialEq>(expected: Vec<T>) {
-    check_iter(T::exhaust(), &expected)
+    check_iter(&mut T::exhaust(), &expected)
 }
 
 /// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
@@ -116,10 +128,10 @@ pub(crate) fn check_double<T: Exhaust + fmt::Debug + PartialEq>(mut expected: Ve
 where
     T::Iter: DoubleEndedIterator,
 {
-    check_iter::<T>(T::exhaust(), &expected);
+    check_iter::<T, _>(&mut T::exhaust(), &expected);
 
     expected.reverse();
-    check_iter::<T>(T::exhaust().rev(), &expected);
+    check_iter::<T, _>(&mut T::exhaust().rev(), &expected);
 }
 
 /// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
