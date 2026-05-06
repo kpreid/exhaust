@@ -1,5 +1,6 @@
 use ::std::assert_eq;
 use ::std::fmt;
+use ::std::iter::FusedIterator;
 use ::std::prelude::rust_2021::*;
 use ::std::vec::Vec;
 
@@ -7,22 +8,54 @@ use ::exhaust::Exhaust;
 
 // -------------------------------------------------------------------------------------------------
 
-/// All practical test cases are assumed to use fewer than this many explicit elements.
-const LIMIT: usize = 1000;
+// TODO: Add a meta-test that demonstrates that this logic panics for all of the bugs
+// it is trying to detect.
 
 #[track_caller]
-fn check_inner<T: Exhaust + fmt::Debug + PartialEq>(expected: &[T]) {
-    assert!(expected.len() < LIMIT);
+fn check_iter<T: fmt::Debug + PartialEq>(
+    mut iterator: impl FusedIterator<Item = T> + fmt::Debug,
+    expected: &[T],
+) {
+    let expected_len = expected.len();
+    assert_size_hint_valid(iterator.size_hint(), expected.len());
 
-    let iter = T::exhaust();
-    let size_hint = iter.size_hint();
-    // TODO: also check the size hint on each step
+    ::std::println!("Initial iterator state {iterator:?}");
+
+    let mut i = 0;
+    loop {
+        assert_size_hint_valid(iterator.size_hint(), expected_len - i);
+
+        let Some(item) = iterator.next() else {
+            break;
+        };
+        ::std::println!("{i}. {item:?} from {iterator:?}");
+
+        assert!(
+            i < expected.len(),
+            "iterator produced item {i}, {item:?}, beyond the {expected_len} expected items",
+        );
+
+        assert_eq!(item, expected[i], "item {i}");
+
+        i += 1;
+    }
+
     assert_eq!(
-        iter.take(LIMIT).collect::<Vec<T>>(),
-        expected,
-        "forward iteration"
+        i,
+        expected_len,
+        "iterator produced fewer items than expected; it is missing {missing:#?}",
+        missing = &expected[i..],
     );
-    assert_size_hint_valid(size_hint, expected.len());
+
+    // Check size hint when exhausted
+    assert_size_hint_valid(iterator.size_hint(), 0);
+
+    // Check `FusedIterator` behavior when exhausted
+    assert_eq!(
+        iterator.next(),
+        None,
+        "iterator should produce None after the end"
+    );
 }
 
 #[track_caller]
@@ -45,7 +78,7 @@ pub(crate) fn assert_size_hint_valid((lower, upper): (usize, Option<usize>), exp
 #[allow(dead_code)] // compiled from multiple crates
 #[track_caller]
 pub(crate) fn check<T: Exhaust + fmt::Debug + PartialEq>(expected: Vec<T>) {
-    check_inner(&expected)
+    check_iter(T::exhaust(), &expected)
 }
 
 /// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
@@ -58,12 +91,19 @@ pub(crate) fn check_exact<T: Exhaust + fmt::Debug + PartialEq>(expected: Vec<T>)
 where
     T::Iter: ExactSizeIterator,
 {
-    check_inner(&expected);
+    // TODO: test correctness of len() throughout and not just at the beginning and end
+    let mut iter = T::exhaust();
+    let initial_len = iter.len();
+    check_iter(&mut iter, &expected);
+
+    // This assertion is done after checking the contents, because if both are wrong,
+    // we’d rather see the wrong contents.
     assert_eq!(
-        T::exhaust().len(),
+        initial_len,
         expected.len(),
         "len() does not match number of elements produced"
     );
+    assert_eq!(iter.len(), 0, "len() is not zero after iteration");
 }
 
 /// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
@@ -76,14 +116,10 @@ pub(crate) fn check_double<T: Exhaust + fmt::Debug + PartialEq>(mut expected: Ve
 where
     T::Iter: DoubleEndedIterator,
 {
-    check_inner::<T>(&expected);
+    check_iter::<T>(T::exhaust(), &expected);
 
     expected.reverse();
-    assert_eq!(
-        T::exhaust().rev().take(LIMIT).collect::<Vec<T>>(),
-        expected,
-        "reverse iteration"
-    );
+    check_iter::<T>(T::exhaust().rev(), &expected);
 }
 
 /// Check correctness of an [`Exhaust`] implementation against explicitly listed values.
