@@ -58,7 +58,7 @@ required-features = ["alloc"]
 # It’s OK to use an "=" version requirement here because this should be the *only* package that
 # depends on `exhaust-macros`, so a dependency resolution conflict will not arise.
 exhaust-macros = { version = "=0.3.0", path = "exhaust-macros" }
-# itertools is used for its powerset iterator, which is only available with alloc
+# we use itertools::{MultiProduct, repeat_n} for collections
 itertools = { workspace = true, optional = true }
 mutants = ">=0.0.1, <0.0.5"
 

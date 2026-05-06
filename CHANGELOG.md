@@ -9,6 +9,12 @@
 
 ### Fixed
 
+* Iterators for `BTreeSet` and `HashSet` now produce their elements (sets) in the order that is
+  sorted according to `BTreeSet`’s `Ord` implementation, rather than producing the sets in order
+  from smallest to largest.
+  This follows the general recommendation for all `Exhaust` implementations.
+  (`BTreeMap`’s and `HashMap`’s ordering have also changed, but it is not yet the case that
+  `BTreeMap` exhaustion occurs in sorted order.)
 * Corrected incorrect bounds on a `FusedIterator` implementation.
   (It is not possible to obtain a misbehaving value of this undocumented type, but this change could
   technically cause some code to stop compiling.)
