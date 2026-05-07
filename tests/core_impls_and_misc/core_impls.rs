@@ -246,6 +246,26 @@ mod impl_fmt {
     }
 }
 
+mod impl_num {
+    use super::*;
+
+    #[test]
+    fn impl_saturating() {
+        use core::num::Saturating;
+        // While using Saturating with Bool doesn’t make much sense, it is sufficient to
+        // exercise exhaustion, since the struct has just the one public field.
+        check_double_exact(vec![Saturating(false), Saturating(true)]);
+    }
+
+    #[test]
+    fn impl_wrapping() {
+        use core::num::Wrapping;
+        // While using Wrapping with Bool doesn’t make much sense, it is sufficient to
+        // exercise exhaustion, since the struct has just the one public field.
+        check_double_exact(vec![Wrapping(false), Wrapping(true)]);
+    }
+}
+
 mod impl_ops {
     use super::*;
 

@@ -127,4 +127,5 @@ impl_via_array!(
     ]
 );
 
+impl_newtype_generic!(T: [], num::Saturating<T>, num::Saturating);
 impl_newtype_generic!(T: [], num::Wrapping<T>, num::Wrapping);

@@ -4,6 +4,7 @@
 
 ### Added
 
+* `impl Exhaust for core::num::Saturating`
 * Iterators for several standard library enums now implement `ExactSizeIterator`.
 * Iterators for `NonZero<u*>` now implement `DoubleEndedIterator` and `ExactSizeIterator`.
 
