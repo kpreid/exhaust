@@ -24,7 +24,7 @@ name = "exhaust"
 # This version has started using "=" version requirements for `exhaust-macros`, so when we
 # do decide to release `exhaust` v0.3, we will be able to keep the major version of `exhaust-macros`
 # the same — or just switch to v0.4 if that feels cleaner.
-version = "0.2.5"
+version = "0.2.6"
 edition.workspace = true
 rust-version.workspace = true
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
