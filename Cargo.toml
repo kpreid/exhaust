@@ -55,14 +55,12 @@ name = "keyed_collections"
 required-features = ["alloc"]
 
 [dependencies]
+
 # It’s OK to use an "=" version requirement here because this should be the *only* package that
 # depends on `exhaust-macros`, so a dependency resolution conflict will not arise.
 exhaust-macros = { version = "=0.3.1", path = "exhaust-macros" }
-# we use itertools::{MultiProduct, repeat_n} for collections
-itertools = { workspace = true, optional = true }
-mutants = ">=0.0.1, <0.0.5"
 
-[workspace.dependencies]
+# We use itertools::{MultiProduct, repeat_n} for collections.
 # Minimum version of `itertools` is 0.13.0 because we need this bug fixed,
 #   <https://github.com/rust-itertools/itertools/issues/337>,
 # which affects `ExhaustMap`. 0.15 is the current latest version, which contains no breaking
@@ -73,4 +71,8 @@ mutants = ">=0.0.1, <0.0.5"
 #   * Restructure `Position` as struct instead of enum
 #   * Canonicalize `all_equal_value`'s error type
 # none of which affects us.
-itertools = { version = ">=0.13.0, <0.16", default-features = false, features = ["use_alloc"] }
+itertools = { version = ">=0.13.0, <0.16", optional = true, default-features = false, features = ["use_alloc"] }
+
+# When <https://rust-lang.github.io/rfcs/3808-register-tool.html> is stable, we can use it instead
+# of this.
+mutants = ">=0.0.1, <0.0.5"
