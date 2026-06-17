@@ -24,7 +24,7 @@ name = "exhaust"
 # This version has started using "=" version requirements for `exhaust-macros`, so when we
 # do decide to release `exhaust` v0.3, we will be able to keep the major version of `exhaust-macros`
 # the same — or just switch to v0.4 if that feels cleaner.
-version = "0.2.6"
+version = "0.2.7"
 edition.workspace = true
 rust-version.workspace = true
 description = "Trait and derive macro for working with all possible values of a type (exhaustive enumeration)."
@@ -57,7 +57,7 @@ required-features = ["alloc"]
 [dependencies]
 # It’s OK to use an "=" version requirement here because this should be the *only* package that
 # depends on `exhaust-macros`, so a dependency resolution conflict will not arise.
-exhaust-macros = { version = "=0.3.0", path = "exhaust-macros" }
+exhaust-macros = { version = "=0.3.1", path = "exhaust-macros" }
 # we use itertools::{MultiProduct, repeat_n} for collections
 itertools = { workspace = true, optional = true }
 mutants = ">=0.0.1, <0.0.5"
@@ -65,9 +65,12 @@ mutants = ">=0.0.1, <0.0.5"
 [workspace.dependencies]
 # Minimum version of `itertools` is 0.13.0 because we need this bug fixed,
 #   <https://github.com/rust-itertools/itertools/issues/337>,
-# which affects `ExhaustMap`. 0.14 is the current latest version, which contains no breaking
-# changes relevant to our usages: according to the changelog,
+# which affects `ExhaustMap`. 0.15 is the current latest version, which contains no breaking
+# changes relevant to our usages: according to the changelog, 0.14 changes
 #   * Increased MSRV to 1.63.0
 #   * Removed generic parameter from cons_tuples
-# neither of which affects us.
-itertools = { version = ">=0.13.0, <0.15", default-features = false, features = ["use_alloc"] }
+# and 0.15 changes
+#   * Restructure `Position` as struct instead of enum
+#   * Canonicalize `all_equal_value`'s error type
+# none of which affects us.
+itertools = { version = ">=0.13.0, <0.16", default-features = false, features = ["use_alloc"] }

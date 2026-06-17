@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.7 (2026-06-17)
+
+* The dependency on `itertools` can now use version 0.15, in addition to versions 0.13 through 0.14.
+  This has no effect on the functionality of `exhaust`.
+
 ## 0.2.6 (2026-05-07)
 
 ### Added
