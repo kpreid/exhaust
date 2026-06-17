@@ -2,6 +2,11 @@
 
 ## 0.2.7 (2026-06-17)
 
+### Performance improvements
+
+* The `exhaust-macros` package no longer depends on `itertools`.
+  This may improve build parallelism, and if cross-compiling, avoids building `itertools` for the
+  host as well as the target.
 * The dependency on `itertools` can now use version 0.15, in addition to versions 0.13 through 0.14.
   This has no effect on the functionality of `exhaust`.
 

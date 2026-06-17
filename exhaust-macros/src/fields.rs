@@ -3,6 +3,7 @@ use quote::{quote, ToTokens as _};
 use syn::punctuated::Punctuated;
 
 use crate::common::{ConstructorSyntax, ExhaustContext};
+use crate::iter_util::unzip7;
 
 /// Pieces of the implementation of a product iterator, over fields of a struct
 /// or enum variant.
@@ -151,7 +152,6 @@ pub(crate) fn exhaustion_of_fields(
         2.. => { /* fall through to general case */ }
     }
 
-    #[allow(clippy::type_complexity)]
     let (
         iterator_state_fields,
         iterator_fields_init,
@@ -168,7 +168,7 @@ pub(crate) fn exhaustion_of_fields(
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
-    ) = itertools::multiunzip(struct_fields.iter().enumerate().map(|(index, field)| {
+    ) = unzip7(struct_fields.iter().enumerate().map(|(index, field)| {
         let target_field_name = match &field.ident {
             Some(name) => name.to_token_stream(),
             None => syn::LitInt::new(&format!("{index}"), Span::mixed_site()).to_token_stream(),

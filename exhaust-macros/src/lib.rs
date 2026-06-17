@@ -1,9 +1,10 @@
 //! Proc-macro support for the `exhaust` library. Do not use this library directly.
 
+#![allow(clippy::type_complexity)] // not useful signal
+
 use proc_macro::TokenStream;
 use std::iter;
 
-use itertools::izip;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens as _};
 use syn::punctuated::Punctuated;
@@ -13,12 +14,12 @@ use syn::{parse_macro_input, parse_quote, DeriveInput};
 // -------------------------------------------------------------------------------------------------
 
 mod common;
-use common::ExhaustContext;
+use common::{ConstructorSyntax, ExhaustContext};
 
 mod fields;
 use fields::{exhaustion_of_fields, ExhaustFields};
 
-use crate::common::ConstructorSyntax;
+mod iter_util;
 
 // -------------------------------------------------------------------------------------------------
 // Macro entry point functions
@@ -456,7 +457,7 @@ fn derive_exhaust_for_enum(
         Vec<TokenStream2>,
         Vec<TokenStream2>,
         Vec<TokenStream2>,
-    ) = itertools::multiunzip(e
+    ) = iter_util::unzip6(e
         .variants
         .iter()
         .zip(state_enum_progress_variants.iter())
@@ -530,7 +531,7 @@ fn derive_exhaust_for_enum(
     let first_state_variant_initializer = &state_enum_variant_initializers[0];
 
     // Match arms to advance the iterator.
-    let variant_next_arms = izip!(
+    let variant_next_arms = iter_util::zip5(
         e.variants.iter(),
         state_enum_progress_variants.iter(),
         state_enum_field_pats.iter(),
@@ -580,7 +581,7 @@ fn derive_exhaust_for_enum(
             Vec::with_capacity(state_enum_progress_variants.len() + 1);
         let mut remaining_count_so_far: usize = 0;
         for (original_enum_variant, progress_variant_name) in
-            izip!(&e.variants, &state_enum_progress_variants).rev()
+            iter::zip(&e.variants, &state_enum_progress_variants).rev()
         {
             if original_enum_variant.fields.is_empty() {
                 // If the variant is fieldless, we can predict that it has exactly 1 value to exhaust.
