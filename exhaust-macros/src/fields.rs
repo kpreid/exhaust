@@ -122,10 +122,11 @@ pub(crate) fn exhaustion_of_fields(
                     unnamed: Punctuated::from_iter([syn::Field {
                         attrs: Vec::new(),
                         vis: syn::Visibility::Inherited,
-                        mutability: syn::FieldMutability::None,
                         ident: None,
                         colon_token: None,
                         ty: type_of_field_iterator,
+                        modifiers: syn::FieldModifiers::default(),
+                        default: None,
                     }]),
                 }),
                 factory_field_decls,
@@ -217,10 +218,11 @@ pub(crate) fn exhaustion_of_fields(
             syn::Field {
                 attrs: Vec::new(),
                 vis: syn::Visibility::Inherited,
-                mutability: syn::FieldMutability::None,
                 ident: Some(iter_field_name.clone()),
                 colon_token: None,
                 ty: type_of_field_iterator,
+                modifiers: syn::FieldModifiers::default(),
+                default: None,
             },
             quote! {
                 #iter_field_name : #field_iter_init_function()
