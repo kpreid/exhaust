@@ -737,10 +737,11 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
             .map(|type_var| syn::Field {
                 attrs: vec![],
                 vis: parse_quote! { pub },
-                mutability: syn::FieldMutability::None,
                 ident: None,
                 colon_token: None,
                 ty: syn::Type::Verbatim(type_var.to_token_stream()),
+                modifiers: syn::FieldModifiers::default(),
+                default: None,
             })
             .collect(),
     });
@@ -758,7 +759,6 @@ fn derive_exhaust_for_primitive_tuple(size: u64) -> Result<TokenStream2, syn::Er
                         ident: var.clone(),
                         colon_token: None,
                         bounds: Punctuated::default(),
-                        eq_token: None,
                         default: None,
                     })
                 })

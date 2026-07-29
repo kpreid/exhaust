@@ -89,7 +89,8 @@ impl ExhaustContext {
         }
         syn::TraitBound {
             paren_token: None,
-            modifier: syn::TraitBoundModifier::None,
+            maybe: None,
+            modifiers: syn::TraitBoundModifiers::default(),
             lifetimes: None,
             path,
         }
@@ -121,6 +122,7 @@ impl ExhaustContext {
                     bounded_ty: syn::Type::Verbatim(g.ident.to_token_stream()),
                     colon_token: <_>::default(),
                     bounds: bounds.clone(),
+                    attrs: Vec::new(),
                 }));
             }
         }
