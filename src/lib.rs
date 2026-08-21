@@ -258,7 +258,6 @@ pub trait Exhaust: Sized {
     ///
     /// This function is equivalent to `Self::exhaust_factories().map(Self::from_factory)`.
     /// Implementors should not override it.
-    #[must_use]
     #[mutants::skip]
     fn exhaust() -> Iter<Self> {
         Iter::default()
@@ -270,7 +269,6 @@ pub trait Exhaust: Sized {
     /// [`Exhaust::Iter`] iterator for a type that contains this type.
     ///
     /// See the trait documentation for what properties this iterator should have.
-    #[must_use]
     fn exhaust_factories() -> Self::Iter;
 
     /// Construct a concrete value of this type from a [`Self::Factory`] value produced by
@@ -384,6 +382,7 @@ pub use exhaust_macros::Exhaust;
 /// Iterator over all values of any type that implements [`Exhaust`].
 ///
 /// It may be obtained with [`T::exhaust()`](Exhaust::exhaust) or [`Default::default()`].
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct Iter<T: Exhaust>(<T as Exhaust>::Iter);
 
 impl<T: Exhaust> Default for Iter<T> {
