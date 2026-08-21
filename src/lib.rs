@@ -27,7 +27,6 @@
 #![allow(
     // disagree with these readability opinions
     clippy::redundant_else,
-    clippy::from_iter_instead_of_collect,
 )]
 
 #[cfg(feature = "alloc")]
