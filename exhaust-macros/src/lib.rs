@@ -127,6 +127,7 @@ fn derive_impl(input: DeriveInput) -> Result<TokenStream2, syn::Error> {
                     #helpers::default()
                 }
                 fn from_factory(factory: Self::Factory) -> Self {
+                    #![allow(unreachable_code)] // factory might be uninhabited
                     #from_factory_body_expr
                 }
             }
@@ -310,6 +311,7 @@ fn derive_exhaust_for_struct(
                 impl #impl_or_decl_generics #helpers::Clone for #factory_type
                 where #augmented_where_predicates {
                     fn clone(&self) -> Self {
+                        #![allow(unreachable_code)] // factory might be uninhabited
                         Self(#factory_state_struct_clone_expr)
                     }
                 }
