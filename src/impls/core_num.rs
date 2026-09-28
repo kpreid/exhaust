@@ -3,7 +3,7 @@ use core::num::{self, NonZero};
 use core::ops::RangeInclusive;
 
 use crate::patterns::{
-    factory_is_self, impl_iterator_for_newtype, impl_newtype_generic, impl_via_array,
+    factory_is_self, impl_iterator_for_newtype, impl_newtype_generic_indexable, impl_via_array,
 };
 use crate::Exhaust;
 
@@ -127,5 +127,11 @@ impl_via_array!(
     ]
 );
 
-impl_newtype_generic!(T: [], num::Saturating<T>, num::Saturating);
-impl_newtype_generic!(T: [], num::Wrapping<T>, num::Wrapping);
+impl_newtype_generic_indexable!(T: [], num::Saturating<T>, num::Saturating, saturating_get);
+impl_newtype_generic_indexable!(T: [], num::Wrapping<T>, num::Wrapping, wrapping_get);
+fn saturating_get<T>(value: &core::num::Saturating<T>) -> &T {
+    &value.0
+}
+fn wrapping_get<T>(value: &core::num::Wrapping<T>) -> &T {
+    &value.0
+}
