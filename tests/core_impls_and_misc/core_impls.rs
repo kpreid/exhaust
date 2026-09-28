@@ -110,21 +110,25 @@ fn impl_nonzero_signed() {
 #[test]
 fn impl_array_of_unit_type() {
     check(vec![[(), (), (), ()]]);
+    check_indexable::<[(); 4]>();
 }
 
 #[test]
 fn impl_array_of_uninhabited_type() {
     check(Vec::<[core::convert::Infallible; 4]>::new());
+    check_indexable::<[core::convert::Infallible; 4]>();
 }
 
 #[test]
 fn impl_array_of_0() {
     check::<[bool; 0]>(vec![[]]);
+    check_indexable::<[bool; 0]>();
 }
 
 #[test]
 fn impl_array_of_1() {
     check::<[bool; 1]>(vec![[false], [true]]);
+    check_indexable::<[bool; 1]>();
 }
 
 #[test]
@@ -135,6 +139,16 @@ fn impl_array_of_2() {
         [true, false],
         [true, true],
     ]);
+    check_indexable::<[bool; 2]>();
+}
+
+#[test]
+fn array_indexable_near_usize_max() {
+    const N: usize = size_of::<usize>() - 1;
+    assert_eq!(
+        <[u8; N]>::VALUE_COUNT,
+        256usize.pow(u32::try_from(N).unwrap())
+    );
 }
 
 #[test]
@@ -149,6 +163,7 @@ fn impl_array_of_3() {
         [true, true, false],
         [true, true, true],
     ]);
+    check_indexable::<[bool; 3]>();
 }
 
 #[test]

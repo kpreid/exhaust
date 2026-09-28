@@ -7,6 +7,17 @@ use crate::Exhaust;
 /// (Note that this is a more lenient rule than [`ExactSizeIterator`]’s; therefore, some generic
 /// types may be able to implement [`Indexable`] but not
 /// [`Exhaust<Iter: ExactSizeIterator>`][Exhaust].)
+///
+/// # Example
+///
+/// The indexing of an array of booleans works out to be identical to that of a binary number:
+///
+/// ```
+/// use exhaust::Indexable;
+///
+/// assert_eq!(<[bool; 4]>::to_index(&[true, false, true, true]), 0b1011);
+/// assert_eq!(<[bool; 4]>::from_index(0b0101), [false, true, false, true]);
+/// ```
 pub trait Indexable: Exhaust {
     /// Number of distinct values of this type.
     /// Equivalent to `Self::exhaust().len()`, but is a constant.
