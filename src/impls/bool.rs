@@ -64,35 +64,35 @@ impl Iterator for ExhaustBool {
     }
 }
 
-impl DoubleEndedIterator for ExhaustBool {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        use State::{Exhausted, False, FalseTrue, True};
-
-        let (item, state) = match self.0 {
-            FalseTrue => (Some(true), False),
-            False => (Some(false), Exhausted),
-            True => (Some(true), Exhausted),
-            Exhausted => (None, Exhausted),
-        };
-        self.0 = state;
-        item
-    }
-
-    fn rfold<B, F>(mut self, init: B, mut f: F) -> B
-    where
-        F: FnMut(B, Self::Item) -> B,
-    {
-        let mut state = init;
-        if matches!(self.0, State::True | State::FalseTrue) {
-            state = f(state, true);
-        }
-        if matches!(self.0, State::False | State::FalseTrue) {
-            state = f(state, false);
-        }
-        self.0 = State::Exhausted;
-        state
-    }
-}
+// impl DoubleEndedIterator for ExhaustBool {
+//     fn next_back(&mut self) -> Option<Self::Item> {
+//         use State::{Exhausted, False, FalseTrue, True};
+//
+//         let (item, state) = match self.0 {
+//             FalseTrue => (Some(true), False),
+//             False => (Some(false), Exhausted),
+//             True => (Some(true), Exhausted),
+//             Exhausted => (None, Exhausted),
+//         };
+//         self.0 = state;
+//         item
+//     }
+//
+//     fn rfold<B, F>(mut self, init: B, mut f: F) -> B
+//     where
+//         F: FnMut(B, Self::Item) -> B,
+//     {
+//         let mut state = init;
+//         if matches!(self.0, State::True | State::FalseTrue) {
+//             state = f(state, true);
+//         }
+//         if matches!(self.0, State::False | State::FalseTrue) {
+//             state = f(state, false);
+//         }
+//         self.0 = State::Exhausted;
+//         state
+//     }
+// }
 
 impl core::iter::ExactSizeIterator for ExhaustBool {
     fn len(&self) -> usize {

@@ -65,85 +65,85 @@ where
     }
 }
 
-/// Given an iterator and a function of its elements that yields an iterator,
-/// produce tuples of the two iterators' results.
-#[derive(Clone)]
-#[doc(hidden)] // Public because it was formerly exposed as an iterator type. Not yet recommended for use.
-pub struct FlatZipMap<I: Iterator, J: Iterator, O> {
-    outer_iterator: I,
-    inner: Option<(I::Item, J)>,
-    iter_fn: fn(&I::Item) -> J,
-    output_fn: fn(I::Item, J::Item) -> O,
-}
-
-impl<I, J, O> fmt::Debug for FlatZipMap<I, J, O>
-where
-    I: Iterator + fmt::Debug,
-    I::Item: fmt::Debug,
-    J: Iterator + fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FlatZipMap")
-            .field("outer_iterator", &self.outer_iterator)
-            .field("outer_item", &self.inner.as_ref().map(|i| &i.0))
-            .field("inner_iterator", &self.inner.as_ref().map(|i| &i.1))
-            .finish_non_exhaustive()
-    }
-}
-
-impl<I, J, O> FlatZipMap<I, J, O>
-where
-    I: Iterator,
-    J: Iterator,
-{
-    #[cfg_attr(not(feature = "std"), allow(dead_code))]
-    pub(crate) fn new(
-        outer_iterator: I,
-        iter_fn: fn(&I::Item) -> J,
-        output_fn: fn(I::Item, J::Item) -> O,
-    ) -> Self {
-        Self {
-            outer_iterator,
-            inner: None,
-            iter_fn,
-            output_fn,
-        }
-    }
-}
-
-impl<I, J, O> Iterator for FlatZipMap<I, J, O>
-where
-    I: Iterator<Item: Clone>,
-    J: Iterator,
-{
-    type Item = O;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // This must loop because each outer iterator item could produce an inner iterator with
-        // any number of items, including zero.
-        loop {
-            // Try to produce an item using the current inner iterator.
-            if let Some((ref i_item, ref mut j_iter)) = self.inner {
-                if let Some(j_item) = j_iter.next() {
-                    return Some((self.output_fn)(i_item.clone(), j_item));
-                }
-                // If no items, drop this inner iter and try the outer iter.
-                self.inner = None;
-            }
-
-            // Advance the outer iterator to produce a new inner iterator.
-            let i_item = self.outer_iterator.next()?;
-            let j_iter = (self.iter_fn)(&i_item);
-            self.inner = Some((i_item, j_iter));
-        }
-    }
-}
-
-impl<I, J, O> iter::FusedIterator for FlatZipMap<I, J, O>
-where
-    I: iter::FusedIterator<Item: Clone>,
-    // This bound is not necessary in the current implementation,
-    // but there isn’t any point to not requiring it.
-    J: iter::FusedIterator,
-{
-}
+// /// Given an iterator and a function of its elements that yields an iterator,
+// /// produce tuples of the two iterators' results.
+// #[derive(Clone)]
+// #[doc(hidden)] // Public because it was formerly exposed as an iterator type. Not yet recommended for use.
+// pub struct FlatZipMap<I: Iterator, J: Iterator, O> {
+//     outer_iterator: I,
+//     inner: Option<(I::Item, J)>,
+//     iter_fn: fn(&I::Item) -> J,
+//     output_fn: fn(I::Item, J::Item) -> O,
+// }
+//
+// impl<I, J, O> fmt::Debug for FlatZipMap<I, J, O>
+// where
+//     I: Iterator + fmt::Debug,
+//     I::Item: fmt::Debug,
+//     J: Iterator + fmt::Debug,
+// {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         f.debug_struct("FlatZipMap")
+//             .field("outer_iterator", &self.outer_iterator)
+//             .field("outer_item", &self.inner.as_ref().map(|i| &i.0))
+//             .field("inner_iterator", &self.inner.as_ref().map(|i| &i.1))
+//             .finish_non_exhaustive()
+//     }
+// }
+//
+// impl<I, J, O> FlatZipMap<I, J, O>
+// where
+//     I: Iterator,
+//     J: Iterator,
+// {
+//     #[cfg_attr(not(feature = "std"), allow(dead_code))]
+//     pub(crate) fn new(
+//         outer_iterator: I,
+//         iter_fn: fn(&I::Item) -> J,
+//         output_fn: fn(I::Item, J::Item) -> O,
+//     ) -> Self {
+//         Self {
+//             outer_iterator,
+//             inner: None,
+//             iter_fn,
+//             output_fn,
+//         }
+//     }
+// }
+//
+// impl<I, J, O> Iterator for FlatZipMap<I, J, O>
+// where
+//     I: Iterator<Item: Clone>,
+//     J: Iterator,
+// {
+//     type Item = O;
+//
+//     fn next(&mut self) -> Option<Self::Item> {
+//         // This must loop because each outer iterator item could produce an inner iterator with
+//         // any number of items, including zero.
+//         loop {
+//             // Try to produce an item using the current inner iterator.
+//             if let Some((ref i_item, ref mut j_iter)) = self.inner {
+//                 if let Some(j_item) = j_iter.next() {
+//                     return Some((self.output_fn)(i_item.clone(), j_item));
+//                 }
+//                 // If no items, drop this inner iter and try the outer iter.
+//                 self.inner = None;
+//             }
+//
+//             // Advance the outer iterator to produce a new inner iterator.
+//             let i_item = self.outer_iterator.next()?;
+//             let j_iter = (self.iter_fn)(&i_item);
+//             self.inner = Some((i_item, j_iter));
+//         }
+//     }
+// }
+//
+// impl<I, J, O> iter::FusedIterator for FlatZipMap<I, J, O>
+// where
+//     I: iter::FusedIterator<Item: Clone>,
+//     // This bound is not necessary in the current implementation,
+//     // but there isn’t any point to not requiring it.
+//     J: iter::FusedIterator,
+// {
+// }

@@ -10,7 +10,12 @@
 //! The `alloc` and `std` features add `Exhaust` implementations for
 //! the corresponding standard library crates.
 
-#![forbid(rust_2018_idioms)]
+#![allow(
+    dead_code,
+    unused_macros,
+    unused_imports,
+    reason = "hacking up for creusot"
+)]
 #![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(missing_docs)]

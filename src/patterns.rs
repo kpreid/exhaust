@@ -186,26 +186,26 @@ macro_rules! impl_iterator_for_newtype {
             not_double_ended;
         });
 
-        impl<$($generics)*> DoubleEndedIterator for $iterator_type
-        where $($double_ended_bounds)* {
-            fn next_back(&mut self) -> Option<Self::Item> {
-                self.0.next_back().map($mapping_function)
-            }
-
-            fn rfold<B, F>(self, init: B, mut f: F) -> B
-            where
-                Self: Sized,
-                F: FnMut(B, Self::Item) -> B,
-            {
-                self.0.rfold(init, |state, inner_item| {
-                    f(state, ($mapping_function)(inner_item))
-                })
-            }
-
-            fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-                self.0.nth_back(n).map($mapping_function)
-            }
-        }
+//         impl<$($generics)*> DoubleEndedIterator for $iterator_type
+//         where $($double_ended_bounds)* {
+//             fn next_back(&mut self) -> Option<Self::Item> {
+//                 self.0.next_back().map($mapping_function)
+//             }
+//
+//             fn rfold<B, F>(self, init: B, mut f: F) -> B
+//             where
+//                 Self: Sized,
+//                 F: FnMut(B, Self::Item) -> B,
+//             {
+//                 self.0.rfold(init, |state, inner_item| {
+//                     f(state, ($mapping_function)(inner_item))
+//                 })
+//             }
+//
+//             fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+//                 self.0.nth_back(n).map($mapping_function)
+//             }
+//         }
     };
     (
         [$($generics:tt)*] for $iterator_type:ty {

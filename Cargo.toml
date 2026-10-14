@@ -42,17 +42,17 @@ alloc = ["dep:itertools"]
 [lib]
 test = false # all tests are external / integration tests
 
-[[test]]
-name = "alloc_impls"
-required-features = ["alloc"]
-
-[[test]]
-name = "std_impls"
-required-features = ["std"]
-
-[[test]]
-name = "keyed_collections"
-required-features = ["alloc"]
+# [[test]]
+# name = "alloc_impls"
+# required-features = ["alloc"]
+# 
+# [[test]]
+# name = "std_impls"
+# required-features = ["std"]
+# 
+# [[test]]
+# name = "keyed_collections"
+# required-features = ["alloc"]
 
 [dependencies]
 
@@ -76,4 +76,5 @@ itertools = { version = ">=0.13.0, <0.16", optional = true, default-features = f
 # When <https://rust-lang.github.io/rfcs/3808-register-tool.html> is stable, we can use it instead
 # of this.
 mutants = ">=0.0.1, <0.0.5"
+
 creusot-std = "0.15.0-dev"
