@@ -52,8 +52,8 @@ pub fn peekable_exhaust<T: Exhaust>() -> Pei<T> {
 /// ```
 pub fn carry<I, J, F>(high: &mut I, low: &mut Peekable<J>, factory: F) -> bool
 where
-    I: Iterator,
-    J: Iterator,
+    I: Iterator + crate::cs::iter::IteratorSpec,
+    J: Iterator + crate::cs::iter::IteratorSpec,
     F: FnOnce() -> Peekable<J>,
 {
     if low.peek().is_none() {

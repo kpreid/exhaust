@@ -44,6 +44,9 @@ extern crate self as exhaust;
 
 // -------------------------------------------------------------------------------------------------
 
+use creusot_std::prelude as cp;
+use creusot_std::std as cs;
+
 use core::fmt;
 use core::iter::FusedIterator;
 
@@ -217,7 +220,10 @@ pub trait Exhaust: Sized {
     /// [`ExactSizeIterator`]); it should be treated as an implementation detail.
     ///
     /// </div>
-    type Iter: core::iter::FusedIterator<Item = Self::Factory> + Clone + fmt::Debug;
+    type Iter: core::iter::FusedIterator<Item = Self::Factory>
+        + Clone
+        + fmt::Debug
+        + cs::iter::IteratorSpec;
 
     /// Data which can be used to construct `Self`.
     ///

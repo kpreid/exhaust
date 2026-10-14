@@ -22,16 +22,20 @@ pub fn default<T: Default>() -> T {
     Default::default()
 }
 #[must_use]
-pub fn next<I: Iterator>(iterator: &mut I) -> Option<I::Item> {
+pub fn next<I: Iterator + crate::cs::iter::IteratorSpec>(iterator: &mut I) -> Option<I::Item> {
     iterator.next()
 }
-pub fn size_hint<I: Iterator>(iterator: &I) -> (usize, Option<usize>) {
+pub fn size_hint<I: Iterator + crate::cs::iter::IteratorSpec>(
+    iterator: &I,
+) -> (usize, Option<usize>) {
     iterator.size_hint()
 }
 pub fn clone<T: Clone>(original: &T) -> T {
     original.clone()
 }
-pub fn peek<I: Iterator>(iter: &mut Peekable<I>) -> Option<&I::Item> {
+pub fn peek<I: Iterator + crate::cs::iter::IteratorSpec>(
+    iter: &mut Peekable<I>,
+) -> Option<&I::Item> {
     iter.peek()
 }
 

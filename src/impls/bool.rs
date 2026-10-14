@@ -5,6 +5,8 @@
 //! This doesn't use the “remote derive” pattern because the derive does not support double-ended
 //! iteration, and would produce a superfluous factory type.
 
+use creusot_std::prelude as cp;
+
 impl crate::Exhaust for bool {
     type Iter = ExhaustBool;
     fn exhaust_factories() -> Self::Iter {
@@ -16,7 +18,7 @@ impl crate::Exhaust for bool {
 #[derive(Clone, Debug)]
 pub /*-in-private*/ struct ExhaustBool(State);
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, cp::DeepModel)]
 enum State {
     /// Will yield `[false, true]`
     FalseTrue,
@@ -26,6 +28,35 @@ enum State {
     True,
     /// Will yield `[]`
     Exhausted,
+}
+
+impl creusot_std::std::iter::IteratorSpec for ExhaustBool {
+    #[cp::logic(prophetic)]
+    fn completed(&mut self) -> bool {
+        self.0 == State::Exhausted
+    }
+
+    #[cp::logic]
+    fn produces(self, visited: cp::Seq<Self::Item>, o: Self) -> bool {
+        match (self.0, o.0) {
+            (State::FalseTrue, State::FalseTrue) => visited == cp::Seq::empty(),
+            // State::False => visited == cp::vec![false, true],
+            // State::True => visited == cp::vec![true],
+            // State::Exhausted => visited ,
+            _ => false,
+        }
+    }
+
+    #[cp::logic(open, law)]
+    #[cp::ensures(self.produces(cp::Seq::empty(), self))]
+    fn produces_refl(self) {}
+
+    #[cp::logic(open, law)]
+    #[cp::requires(a.produces(ab, b))]
+    #[cp::requires(b.produces(bc, c))]
+    #[cp::ensures(a.produces(ab.concat(bc), c))]
+    fn produces_trans(a: Self, ab: cp::Seq<Self::Item>, b: Self, bc: cp::Seq<Self::Item>, c: Self) {
+    }
 }
 
 impl Iterator for ExhaustBool {
@@ -62,6 +93,11 @@ impl Iterator for ExhaustBool {
         self.0 = State::Exhausted;
         state
     }
+
+    // #[cp::ensures(match result {
+    //     None => self.completed(),
+    //     Some(v) => (*self).produces(Seq::singleton(v), ^self)
+    // })]
 }
 
 // impl DoubleEndedIterator for ExhaustBool {
@@ -94,6 +130,11 @@ impl Iterator for ExhaustBool {
 //     }
 // }
 
+impl creusot_std::std::iter::ExactSizeIteratorSpec for ExhaustBool {
+    #[cp::logic]
+    fn size_hint_exact(&self, r: (usize, Option<usize>)) {}
+}
+
 impl core::iter::ExactSizeIterator for ExhaustBool {
     fn len(&self) -> usize {
         match self.0 {
@@ -102,6 +143,11 @@ impl core::iter::ExactSizeIterator for ExhaustBool {
             State::Exhausted => 0,
         }
     }
+}
+
+impl creusot_std::std::iter::FusedIteratorSpec for ExhaustBool {
+    #[cp::logic]
+    fn is_fused(&mut self, steps: cp::Seq<Self::Item>, next: Self) {}
 }
 
 impl core::iter::FusedIterator for ExhaustBool {}

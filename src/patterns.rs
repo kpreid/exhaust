@@ -248,6 +248,34 @@ macro_rules! impl_iterator_for_newtype {
                 self.0.last().map($mapping_function)
             }
         }
+
+        impl<$($generics)*> $crate::cs::iter::IteratorSpec for $iterator_type {
+            #[$crate::cp::logic(prophetic)]
+            fn completed(&mut self) -> bool {
+                $crate::cs::iter::IteratorSpec::completed(&mut self.0)
+            }
+
+            #[$crate::cp::logic(prophetic, inline)]
+            fn produces(self, visited: $crate::cp::Seq<Self::Item>, o: Self) -> bool {
+                pearlite! {
+                    use $crate::cs::iter::IteratorSpec;
+
+                    exists<inner_visited>
+                    #[trigger(self.0.produces(inner_visited, o.0))]
+                    inner_visited.len() == visited.len() && self.0.produces(inner_visited, o.0)
+                }
+            }
+
+            #[$crate::cp::logic(open, law)]
+            #[$crate::cp::ensures(self.produces($crate::cp::Seq::empty(), self))]
+            fn produces_refl(self) {}
+
+            #[$crate::cp::logic(open, law)]
+            #[$crate::cp::requires(a.produces(ab, b))]
+            #[$crate::cp::requires(b.produces(bc, c))]
+            #[$crate::cp::ensures(a.produces(ab.concat(bc), c))]
+            fn produces_trans(a: Self, ab: $crate::cp::Seq<Self::Item>, b: Self, bc: $crate::cp::Seq<Self::Item>, c: Self) {}
+        }
     };
 }
 pub(crate) use impl_iterator_for_newtype;
