@@ -4,3 +4,9 @@ Cargo.lock
 # output of cargo-mutants
 /mutants.out/
 /mutants.out.old/
+
+# creusot
+/creusot
+_creusot_erasure
+*.coma
+.why3find
